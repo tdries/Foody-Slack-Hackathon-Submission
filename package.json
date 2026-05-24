@@ -1,0 +1,20 @@
+{
+  "name": "foody",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Foody — a WhatsApp-native food-ordering agent fronting takeaway.com",
+  "type": "module",
+  "bin": {
+    "foody": "./src/cli.ts"
+  },
+  "scripts": {
+    "foody": "tsx src/cli.ts",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}
