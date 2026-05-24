@@ -1,46 +1,75 @@
 # Foody
 
-A WhatsApp-native food-ordering agent that fronts takeaway.com. You text "let's eat something" and Foody walks you through: address → top 3 restaurants → top 10 dishes → emoji-driven cart → confirmed order.
+A Slack-native group food-ordering bot that fronts takeaway.com.
 
-## How it fits together
+Someone in your channel types **"let's eat something"**, Foody picks up. It walks the thread through:
 
-Two layers, on purpose:
+1. **Address** — sticky per Slack user. Asked once, remembered forever, change with _"change address to ..."_.
+2. **Top 3 restaurants** near you — Block Kit cards, one click to open a menu.
+3. **Top 10 dishes** — posted as a single message. Foody pre-reacts with `🍕 🍔 🍟 🌮 🌯 🍣 🍜 🍱 🥗 🍝` so the whole team can **click to add** with one tap.
+4. **Shared cart** — anyone's reaction adds; unreacting removes. Cart summary posts after each change.
+5. **Order** — hit the green button. Receipt with totals and ETA lands in the thread.
 
-1. **The `foody` CLI** (this repo) — owns data, state, and cart math. Per-user state files live in [state/](state/). Restaurant + menu data lives in [data/takeaway-mock.json](data/takeaway-mock.json). The real takeaway.com integration is a stub in [src/takeaway.ts](src/takeaway.ts#L42) — `fetchLive()` returns `null`, so the CLI falls back to the mock.
+## Architecture
 
-2. **The `foody` Claude Code skill** at [~/.claude/skills/foody/SKILL.md](~/.claude/skills/foody/SKILL.md) — owns the WhatsApp conversation. Detects food-order intent on inbound messages, calls the CLI, renders the JSON back as a WhatsApp-friendly reply, and sends it via the `plugin:whatsapp-evolution:whatsapp` MCP `reply` tool.
+| Layer | What it owns |
+|---|---|
+| [src/slack/app.ts](src/slack/app.ts) | Bolt + Socket Mode app. All Slack plumbing — message triggers, action buttons, reaction events, block posting. |
+| [src/slack/blocks.ts](src/slack/blocks.ts) | Block Kit builders for the restaurants card, menu card, cart update, receipt. |
+| [src/slack/intent.ts](src/slack/intent.ts) | Phrase matchers for "let's eat", "order now", "reset", "change address to ...". |
+| [src/state.ts](src/state.ts) | JSON state files in [state/](state/). Two keyings: `addr_<slackUserId>` for the sticky address book, `sess_<channel>_<threadTs>` for the live thread cart. |
+| [src/takeaway.ts](src/takeaway.ts#L42) | Restaurant + dish lookup. Mock-data first, stubbed `fetchLive()` for a real takeaway.com integration. |
+| [src/emojis.ts](src/emojis.ts) | The fixed 10-emoji pool + Unicode ↔ Slack shortcode mapping. |
+| [src/cli.ts](src/cli.ts) | Original CLI — left in place for debugging state by hand. |
 
-Keeping the CLI presentation-free means you can iterate on the WhatsApp tone in the skill without touching code, and vice versa.
+No Claude in the runtime path — Foody is deterministic code. The intent matcher is a list of phrases, not an LLM call.
 
 ## Install
 
 ```bash
 npm install
+cp .env.example .env
+# Fill in SLACK_BOT_TOKEN, SLACK_APP_TOKEN, SLACK_SIGNING_SECRET
 ```
 
-Then point any WhatsApp instance running the `plugin:whatsapp-evolution:whatsapp` MCP plugin at Claude Code. The skill takes over on food-order intent.
+### Slack app setup
 
-## CLI usage
+1. Go to https://api.slack.com/apps → **Create New App** → **From a manifest**.
+2. Paste [docs/slack-manifest.yml](docs/slack-manifest.yml).
+3. **Install to Workspace**, copy the **Bot User OAuth Token** (`xoxb-...`) → `SLACK_BOT_TOKEN`.
+4. **Basic Information** → **App-Level Tokens** → create one with `connections:write` → copy (`xapp-...`) → `SLACK_APP_TOKEN`.
+5. **Basic Information** → **Signing Secret** → `SLACK_SIGNING_SECRET`.
+6. Invite the bot into a channel: `/invite @Foody`.
 
-All commands output JSON.
+### Run
+
+```bash
+npm run dev:slack
+```
+
+Then in Slack: `let's eat something` in a channel where Foody is a member, or DM it.
+
+## Knobs
+
+`.env`:
+
+- `FOODY_CHANNELS` — comma-separated channel IDs to restrict the bot to. Empty = listen everywhere it's been invited.
+- `FOODY_LOG_LEVEL` — `debug`, `info` (default), `warn`, `error`.
+
+## CLI (debug only)
 
 ```bash
 npm run foody -- address <user> --set "Veldstraat 1, 9000 Gent"
 npm run foody -- restaurants <user>
 npm run foody -- menu <user> --index 1
-npm run foody -- cart <user> --add "🍕,🍔,🍔"
-npm run foody -- cart <user>
+npm run foody -- cart <user> --add "🍕,🍔"
 npm run foody -- order <user>
 npm run foody -- status <user>
 npm run foody -- reset <user>
 ```
 
-`<user>` should be the WhatsApp `remoteJid` (or stripped phone number). State is keyed by that and persisted in [state/](state/).
+`<user>` is just a state key — pass a Slack userId or anything you want; state is keyed by that string.
 
-## Wiring a real takeaway.com
+## Wiring real takeaway.com
 
-Replace the body of `fetchLive()` in [src/takeaway.ts](src/takeaway.ts#L42) so it returns the same shape as the mock (`{ restaurants: [...], dishes: [...] }`). Everything downstream — restaurants ranking, top-10 dishes, cart, order — already runs on that shape.
-
-## Data shape
-
-See [data/takeaway-mock.json](data/takeaway-mock.json) for the schema. Restaurants are filtered by Belgian postcode (extracted from the address string) and ranked by `rating, reviewCount`. Dishes are ranked by `popularity` to produce the top-10.
+[src/takeaway.ts:42](src/takeaway.ts#L42) — replace the body of `fetchLive()` so it returns `{ restaurants, dishes }` in the same shape as [data/takeaway-mock.json](data/takeaway-mock.json). Everything downstream — top-3 ranking, top-10 dishes, the Slack flow — runs unchanged on real data.

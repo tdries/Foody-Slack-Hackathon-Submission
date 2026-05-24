@@ -15,6 +15,9 @@ export type MenuItem = {
   description?: string;
 };
 
+/** What the bot is waiting on next in this conversation, if anything. */
+export type PendingPrompt = "address" | null;
+
 export type FoodyState = {
   user: string;
   address: string | null;
@@ -23,6 +26,11 @@ export type FoodyState = {
   menu: MenuItem[];
   cart: CartLine[];
   lastOrderId: string | null;
+  /** Slack userId that started this session — used to look up the address book. */
+  initiator: string | null;
+  pendingPrompt: PendingPrompt;
+  /** The Slack ts of the menu message we pre-reacted to, so reaction events can be matched to the right session. */
+  menuMessageTs: string | null;
   updatedAt: string;
 };
 
@@ -35,7 +43,18 @@ function emptyState(user: string): FoodyState {
     menu: [],
     cart: [],
     lastOrderId: null,
+    initiator: null,
+    pendingPrompt: null,
+    menuMessageTs: null,
     updatedAt: new Date().toISOString(),
+  };
+}
+
+/** Backfill optional fields when loading a state file written by an older version. */
+function normalise(s: FoodyState): FoodyState {
+  return {
+    ...emptyState(s.user),
+    ...s,
   };
 }
 
@@ -52,7 +71,7 @@ export function loadState(user: string): FoodyState {
   const path = statePath(user);
   if (!existsSync(path)) return emptyState(user);
   try {
-    return JSON.parse(readFileSync(path, "utf-8")) as FoodyState;
+    return normalise(JSON.parse(readFileSync(path, "utf-8")) as FoodyState);
   } catch {
     return emptyState(user);
   }
@@ -67,4 +86,25 @@ export function resetState(user: string): FoodyState {
   const fresh = emptyState(user);
   saveState(fresh);
   return fresh;
+}
+
+/** State key for a user's sticky address book (one entry per Slack userId). */
+export function addressKey(slackUserId: string): string {
+  return `addr_${slackUserId}`;
+}
+
+/** State key for an active ordering session in a Slack thread. */
+export function sessionKey(channel: string, threadTs: string): string {
+  // Slack ts values contain a dot — replace it so the filename stays sane.
+  return `sess_${channel}_${threadTs.replace(/\./g, "-")}`;
+}
+
+export function getDefaultAddress(slackUserId: string): string | null {
+  return loadState(addressKey(slackUserId)).address;
+}
+
+export function setDefaultAddress(slackUserId: string, address: string): void {
+  const state = loadState(addressKey(slackUserId));
+  state.address = address;
+  saveState(state);
 }

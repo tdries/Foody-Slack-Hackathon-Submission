@@ -1,0 +1,46 @@
+# Paste this into https://api.slack.com/apps → Create New App → "From a manifest"
+# Socket Mode app, no public URL needed.
+display_information:
+  name: Foody
+  description: Group food ordering for your team — react with emojis to build a shared cart.
+  background_color: "#FF6B35"
+
+features:
+  bot_user:
+    display_name: Foody
+    always_online: true
+  app_home:
+    home_tab_enabled: false
+    messages_tab_enabled: true
+    messages_tab_read_only_enabled: false
+
+oauth_config:
+  scopes:
+    bot:
+      # Read messages in channels where the bot is invited + DMs to the bot
+      - channels:history
+      - groups:history
+      - im:history
+      - mpim:history
+      # Post messages, threads, blocks
+      - chat:write
+      # Pre-react to the menu message + receive reaction events
+      - reactions:read
+      - reactions:write
+      # Read minimal user info for the address book greeting
+      - users:read
+
+settings:
+  event_subscriptions:
+    bot_events:
+      - message.channels
+      - message.groups
+      - message.im
+      - message.mpim
+      - reaction_added
+      - reaction_removed
+  interactivity:
+    is_enabled: true
+  socket_mode_enabled: true
+  org_deploy_enabled: false
+  token_rotation_enabled: false
