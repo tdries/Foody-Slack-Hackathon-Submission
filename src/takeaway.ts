@@ -1,9 +1,33 @@
-import { readFileSync } from "node:fs";
+import { readFileSync, existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = join(__dirname, "..", "data");
+const MANIFEST_PATH = join(DATA_DIR, "dish-images", "manifest.json");
+const UPLOADED_PATH = join(DATA_DIR, "dish-images", "uploaded.json");
+
+type ManifestEntry = { slug: string; source: string };
+type Manifest = Record<string, ManifestEntry>;
+type Uploaded = Record<string, boolean>;
+
+function loadManifest(): Manifest {
+  if (!existsSync(MANIFEST_PATH)) return {};
+  try {
+    return JSON.parse(readFileSync(MANIFEST_PATH, "utf-8")) as Manifest;
+  } catch {
+    return {};
+  }
+}
+
+function loadUploaded(): Uploaded {
+  if (!existsSync(UPLOADED_PATH)) return {};
+  try {
+    return JSON.parse(readFileSync(UPLOADED_PATH, "utf-8")) as Uploaded;
+  } catch {
+    return {};
+  }
+}
 
 export type Restaurant = {
   id: string;
@@ -25,6 +49,10 @@ export type Dish = {
   price: number;
   popularity: number; // 0-100, used to rank "top 10"
   category?: string;
+  /** Preferred Slack emoji shortcode (no colons) for menu rendering. */
+  slackEmoji?: string;
+  /** Workspace-uploaded custom emoji shortcode (no colons), e.g. "foody_margherita". */
+  customEmoji?: string;
 };
 
 type DataFile = {
@@ -37,7 +65,18 @@ let cache: DataFile | null = null;
 function loadData(): DataFile {
   if (cache) return cache;
   const path = join(DATA_DIR, "takeaway-mock.json");
-  cache = JSON.parse(readFileSync(path, "utf-8")) as DataFile;
+  const raw = JSON.parse(readFileSync(path, "utf-8")) as DataFile;
+  const manifest = loadManifest();
+  const uploaded = loadUploaded();
+  // Only stamp customEmoji for dishes whose image has been confirmed uploaded
+  // to this workspace (uploaded.json). The manifest alone isn't enough — image
+  // download is a separate step from Slack workspace upload, and the upload
+  // state is per-workspace so it's tracked separately.
+  for (const d of raw.dishes) {
+    const entry = manifest[d.id];
+    if (entry && uploaded[entry.slug]) d.customEmoji = `foody_${entry.slug}`;
+  }
+  cache = raw;
   return cache;
 }
 

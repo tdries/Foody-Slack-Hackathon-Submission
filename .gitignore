@@ -6,3 +6,6 @@ state/*.json
 .DS_Store
 dist/
 *.log
+
+# Per-workspace state — which custom emojis have been uploaded to *this* Slack.
+data/dish-images/uploaded.json

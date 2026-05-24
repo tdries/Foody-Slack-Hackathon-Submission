@@ -5,10 +5,12 @@ import { fileURLToPath } from "node:url";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const STATE_DIR = join(__dirname, "..", "state");
 
+import { slackNameForUnicode } from "./emojis.ts";
+
 export type CartLine = { dishId: string; qty: number };
 
 export type MenuItem = {
-  emoji: string;
+  emoji: { unicode: string; slack: string };
   dishId: string;
   name: string;
   price: number;
@@ -52,10 +54,16 @@ function emptyState(user: string): FoodyState {
 
 /** Backfill optional fields when loading a state file written by an older version. */
 function normalise(s: FoodyState): FoodyState {
-  return {
-    ...emptyState(s.user),
-    ...s,
-  };
+  const merged: FoodyState = { ...emptyState(s.user), ...s };
+  // Old menu items had `emoji: string` (just the Unicode). Hoist to the new shape.
+  merged.menu = (merged.menu ?? []).map((m: any) => {
+    if (m && typeof m.emoji === "string") {
+      const slack = slackNameForUnicode(m.emoji) ?? "question";
+      return { ...m, emoji: { unicode: m.emoji, slack } };
+    }
+    return m as MenuItem;
+  });
+  return merged;
 }
 
 function safeUserKey(user: string): string {

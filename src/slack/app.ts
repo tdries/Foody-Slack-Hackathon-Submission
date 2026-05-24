@@ -19,11 +19,7 @@ import {
   getTopDishes,
   getDish,
 } from "../takeaway.ts";
-import {
-  DISH_EMOJIS,
-  dishEmojiForIndex,
-  unicodeForSlackName,
-} from "../emojis.ts";
+import { assignUniqueEmojis } from "../emojis.ts";
 import {
   isFoodyTrigger,
   isOrderConfirm,
@@ -120,16 +116,16 @@ async function postMenuAndPreReact(
   if (!restaurant) throw new Error("active restaurant not found");
 
   const dishes = await getTopDishes(restaurant.id, 10);
-  const menu: MenuItem[] = dishes.map((d, i) => {
-    const emoji = dishEmojiForIndex(i);
-    return {
-      emoji: emoji?.unicode ?? `#${i + 1}`,
-      dishId: d.id,
-      name: d.name,
-      price: d.price,
-      description: d.description,
-    };
-  });
+  const emojis = assignUniqueEmojis(
+    dishes.map((d) => ({ customSlack: d.customEmoji, thematicSlack: d.slackEmoji })),
+  );
+  const menu: MenuItem[] = dishes.map((d, i) => ({
+    emoji: emojis[i],
+    dishId: d.id,
+    name: d.name,
+    price: d.price,
+    description: d.description,
+  }));
 
   state.menu = menu;
   state.activeRestaurantName = restaurant.name;
@@ -145,21 +141,19 @@ async function postMenuAndPreReact(
   state.menuMessageTs = post.ts as string;
   saveState(state);
 
-  // Pre-react with each emoji so people can one-click instead of opening the picker.
+  // Pre-react with each dish's emoji so people can one-click instead of opening the picker.
   // Fire sequentially — Slack rate-limits reactions.add to ~1/sec per channel.
-  for (let i = 0; i < menu.length; i++) {
-    const dishEmoji = dishEmojiForIndex(i);
-    if (!dishEmoji) continue;
+  for (const m of menu) {
     try {
       await client.reactions.add({
         channel,
         timestamp: post.ts,
-        name: dishEmoji.slack,
+        name: m.emoji.slack,
       });
     } catch (err: any) {
       // already_reacted is harmless; everything else we just log.
       if (err?.data?.error !== "already_reacted") {
-        console.warn(`reactions.add ${dishEmoji.slack} failed:`, err?.data?.error ?? err);
+        console.warn(`reactions.add ${m.emoji.slack} failed:`, err?.data?.error ?? err);
       }
     }
   }
@@ -315,9 +309,7 @@ app.event("reaction_added", async ({ event, client }: any) => {
   const sess = findSessionByMenuTs(channel, menuTs);
   if (!sess) return;
 
-  const unicode = unicodeForSlackName(event.reaction);
-  if (!unicode) return;
-  const menuItem = sess.menu.find((m) => m.emoji === unicode);
+  const menuItem = sess.menu.find((m) => m.emoji.slack === event.reaction);
   if (!menuItem) return;
 
   const existing = sess.cart.find((l) => l.dishId === menuItem.dishId);
@@ -325,8 +317,6 @@ app.event("reaction_added", async ({ event, client }: any) => {
   else sess.cart.push({ dishId: menuItem.dishId, qty: 1 });
   saveState(sess);
 
-  const threadTs = menuTs; // menu was posted in-thread, but its own ts is what reactions land on. We want the cart message to appear in the same thread as the menu, which means the menu's thread_ts. Fetch from event if needed.
-  // Cleaner: re-post in the original thread, which we can recover via conversations.replies — but to keep this simple, post in the thread that contains the menu message:
   const threadParent = await resolveThreadTs(client, channel, menuTs);
   await postCart(client, channel, threadParent, sess);
 });
@@ -342,9 +332,7 @@ app.event("reaction_removed", async ({ event, client }: any) => {
   const sess = findSessionByMenuTs(channel, menuTs);
   if (!sess) return;
 
-  const unicode = unicodeForSlackName(event.reaction);
-  if (!unicode) return;
-  const menuItem = sess.menu.find((m) => m.emoji === unicode);
+  const menuItem = sess.menu.find((m) => m.emoji.slack === event.reaction);
   if (!menuItem) return;
 
   const existing = sess.cart.find((l) => l.dishId === menuItem.dishId);
@@ -399,7 +387,7 @@ async function placeOrder(client: any, channel: string, threadTs: string, sess: 
         qty: l.qty,
         unitPrice: dish?.price ?? 0,
         lineTotal: +(((dish?.price ?? 0) * l.qty)).toFixed(2),
-        emoji: menuItem?.emoji ?? null,
+        emoji: menuItem?.emoji.unicode ?? null,
       };
     }),
   );
@@ -476,8 +464,6 @@ async function main() {
   } else {
     console.log("Listening in all channels the bot is a member of.");
   }
-  // suppress unused-symbol warning for DISH_EMOJIS while keeping the export available
-  void DISH_EMOJIS;
 }
 
 main().catch((err) => {

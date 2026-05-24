@@ -19,7 +19,12 @@ import {
   getTopDishes,
   getDish,
 } from "./takeaway.ts";
-import { emojiForIndex, matchMenuEmoji } from "./emojis.ts";
+import { assignUniqueEmojis } from "./emojis.ts";
+
+function matchMenuEmoji(input: string, menu: { emoji: { unicode: string } }[]): { unicode: string } | null {
+  const target = input.replace(/️/g, "").trim();
+  return menu.find((m) => m.emoji.unicode.replace(/️/g, "") === target)?.emoji ?? null;
+}
 
 type Args = { _: string[]; flags: Record<string, string | boolean> };
 
@@ -144,8 +149,11 @@ async function cmdMenu(args: Args) {
   if (!restaurant) return emit({ ok: false, error: "restaurant_not_found" });
 
   const dishes = await getTopDishes(restaurant.id, 10);
+  const emojis = assignUniqueEmojis(
+    dishes.map((d) => ({ customSlack: d.customEmoji, thematicSlack: d.slackEmoji })),
+  );
   const menu: MenuItem[] = dishes.map((d, i) => ({
-    emoji: emojiForIndex(i),
+    emoji: emojis[i],
     dishId: d.id,
     name: d.name,
     price: d.price,
@@ -188,8 +196,6 @@ async function cmdCart(args: Args) {
     return emit({ ok: true, action: "cart_cleared", ...cartSummary(state) });
   }
 
-  const menuEmojis = state.menu.map((m) => m.emoji);
-
   const addRaw = typeof args.flags.add === "string" ? args.flags.add : null;
   const removeRaw = typeof args.flags.remove === "string" ? args.flags.remove : null;
 
@@ -198,12 +204,12 @@ async function cmdCart(args: Args) {
     const tokens = addRaw.split(/[\s,]+/).filter(Boolean);
     const unknown: string[] = [];
     for (const t of tokens) {
-      const matched = matchMenuEmoji(t, menuEmojis);
+      const matched = matchMenuEmoji(t, state.menu);
       if (!matched) {
         unknown.push(t);
         continue;
       }
-      const menuItem = state.menu.find((m) => m.emoji === matched)!;
+      const menuItem = state.menu.find((m) => m.emoji.unicode === matched.unicode)!;
       const existing = state.cart.find((l) => l.dishId === menuItem.dishId);
       if (existing) existing.qty += 1;
       else state.cart.push({ dishId: menuItem.dishId, qty: 1 });
@@ -221,9 +227,9 @@ async function cmdCart(args: Args) {
   if (removeRaw) {
     const tokens = removeRaw.split(/[\s,]+/).filter(Boolean);
     for (const t of tokens) {
-      const matched = matchMenuEmoji(t, menuEmojis);
+      const matched = matchMenuEmoji(t, state.menu);
       if (!matched) continue;
-      const menuItem = state.menu.find((m) => m.emoji === matched)!;
+      const menuItem = state.menu.find((m) => m.emoji.unicode === matched.unicode)!;
       const existing = state.cart.find((l) => l.dishId === menuItem.dishId);
       if (!existing) continue;
       existing.qty -= 1;

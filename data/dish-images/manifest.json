@@ -1,0 +1,426 @@
+{
+  "d-001-01": {
+    "slug": "margherita",
+    "source": "themealdb"
+  },
+  "d-001-02": {
+    "slug": "quattro_formaggi",
+    "source": "wikimedia"
+  },
+  "d-001-03": {
+    "slug": "diavola",
+    "source": "wikimedia"
+  },
+  "d-002-01": {
+    "slug": "pad_thai",
+    "source": "themealdb"
+  },
+  "d-002-06": {
+    "slug": "green_curry",
+    "source": "themealdb"
+  },
+  "d-002-09": {
+    "slug": "tom_kha_gai",
+    "source": "themealdb"
+  },
+  "d-003-10": {
+    "slug": "kapsalon",
+    "source": "themealdb"
+  },
+  "d-006-02": {
+    "slug": "lamb_rogan_josh",
+    "source": "themealdb"
+  },
+  "d-007-05": {
+    "slug": "lahmacun",
+    "source": "themealdb"
+  },
+  "d-001-08": {
+    "slug": "spaghetti_carbonara",
+    "source": "themealdb"
+  },
+  "d-003-03": {
+    "slug": "bicky_burger",
+    "source": "themealdb"
+  },
+  "d-003-11": {
+    "slug": "sausage_roll",
+    "source": "themealdb"
+  },
+  "d-004-02": {
+    "slug": "dragon_roll",
+    "source": "themealdb"
+  },
+  "d-004-05": {
+    "slug": "california_roll",
+    "source": "themealdb"
+  },
+  "d-004-08": {
+    "slug": "miso_soup",
+    "source": "themealdb"
+  },
+  "d-004-11": {
+    "slug": "tempura_prawns_5",
+    "source": "themealdb"
+  },
+  "d-005-01": {
+    "slug": "story_classic",
+    "source": "themealdb"
+  },
+  "d-005-04": {
+    "slug": "truffle_burger",
+    "source": "themealdb"
+  },
+  "d-005-05": {
+    "slug": "chicken_crunch",
+    "source": "themealdb"
+  },
+  "d-005-08": {
+    "slug": "onion_rings",
+    "source": "themealdb"
+  },
+  "d-005-10": {
+    "slug": "chocolate_brownie",
+    "source": "themealdb"
+  },
+  "d-006-08": {
+    "slug": "samosa_vegetable_2",
+    "source": "themealdb"
+  },
+  "d-006-09": {
+    "slug": "chicken_biryani",
+    "source": "themealdb"
+  },
+  "d-006-10": {
+    "slug": "mango_lassi",
+    "source": "themealdb"
+  },
+  "d-007-01": {
+    "slug": "pita_kapsalon",
+    "source": "themealdb"
+  },
+  "d-007-04": {
+    "slug": "pita_falafel",
+    "source": "themealdb"
+  },
+  "d-007-07": {
+    "slug": "hummus_bread",
+    "source": "themealdb"
+  },
+  "d-007-08": {
+    "slug": "baklava_4_pcs",
+    "source": "themealdb"
+  },
+  "d-007-09": {
+    "slug": "turkish_tea",
+    "source": "themealdb"
+  },
+  "d-008-08": {
+    "slug": "panna_cotta",
+    "source": "themealdb"
+  },
+  "d-009-01": {
+    "slug": "pho_bo_beef",
+    "source": "themealdb"
+  },
+  "d-009-02": {
+    "slug": "pho_ga_chicken",
+    "source": "themealdb"
+  },
+  "d-009-08": {
+    "slug": "bun_cha",
+    "source": "themealdb"
+  },
+  "d-010-04": {
+    "slug": "quesadilla_pollo",
+    "source": "themealdb"
+  },
+  "d-010-09": {
+    "slug": "churros_chocolate",
+    "source": "themealdb"
+  },
+  "d-001-04": {
+    "slug": "prosciutto_e_funghi",
+    "source": "wikipedia"
+  },
+  "d-001-05": {
+    "slug": "tartufo",
+    "source": "wikipedia"
+  },
+  "d-001-06": {
+    "slug": "hawaii",
+    "source": "wikipedia"
+  },
+  "d-001-07": {
+    "slug": "lasagne_al_forno",
+    "source": "wikipedia"
+  },
+  "d-001-09": {
+    "slug": "tiramisu",
+    "source": "wikipedia"
+  },
+  "d-001-10": {
+    "slug": "bruschetta_pomodoro",
+    "source": "wikipedia"
+  },
+  "d-001-11": {
+    "slug": "caprese",
+    "source": "wikipedia"
+  },
+  "d-001-12": {
+    "slug": "calzone_classico",
+    "source": "wikipedia"
+  },
+  "d-002-02": {
+    "slug": "beef_bibimbap",
+    "source": "wikipedia"
+  },
+  "d-002-03": {
+    "slug": "chicken_yakisoba",
+    "source": "wikipedia"
+  },
+  "d-002-04": {
+    "slug": "vegetable_spring_rolls",
+    "source": "wikipedia"
+  },
+  "d-002-05": {
+    "slug": "crispy_duck_pancakes",
+    "source": "wikipedia"
+  },
+  "d-002-07": {
+    "slug": "sweet_sour_chicken",
+    "source": "wikipedia"
+  },
+  "d-002-08": {
+    "slug": "beef_in_black_bean",
+    "source": "wikipedia"
+  },
+  "d-002-10": {
+    "slug": "mango_sticky_rice",
+    "source": "wikipedia"
+  },
+  "d-002-11": {
+    "slug": "gyoza_6_pcs",
+    "source": "wikipedia"
+  },
+  "d-003-01": {
+    "slug": "frieten_groot_mayo",
+    "source": "wikipedia"
+  },
+  "d-003-02": {
+    "slug": "mitraillette_stoofvlees",
+    "source": "wikipedia"
+  },
+  "d-003-04": {
+    "slug": "frikandel_speciaal",
+    "source": "wikipedia"
+  },
+  "d-003-05": {
+    "slug": "stoofvlees_frieten",
+    "source": "wikipedia"
+  },
+  "d-003-06": {
+    "slug": "vol_au_vent_frieten",
+    "source": "wikipedia"
+  },
+  "d-003-07": {
+    "slug": "boulet_liegeois",
+    "source": "wikipedia"
+  },
+  "d-003-08": {
+    "slug": "curryworst",
+    "source": "wikipedia"
+  },
+  "d-003-09": {
+    "slug": "loempia",
+    "source": "wikipedia"
+  },
+  "d-004-01": {
+    "slug": "salmon_nigiri_6",
+    "source": "wikipedia"
+  },
+  "d-004-03": {
+    "slug": "sashimi_mix_12",
+    "source": "wikipedia"
+  },
+  "d-004-04": {
+    "slug": "spicy_tuna_roll",
+    "source": "wikipedia"
+  },
+  "d-004-06": {
+    "slug": "chicken_teriyaki_bento",
+    "source": "wikipedia"
+  },
+  "d-004-07": {
+    "slug": "edamame",
+    "source": "wikipedia"
+  },
+  "d-004-09": {
+    "slug": "gyoza_5_pcs",
+    "source": "wikipedia"
+  },
+  "d-004-10": {
+    "slug": "mochi_trio",
+    "source": "wikipedia"
+  },
+  "d-005-02": {
+    "slug": "double_smash",
+    "source": "wikipedia"
+  },
+  "d-005-06": {
+    "slug": "veggie_bean_burger",
+    "source": "wikipedia"
+  },
+  "d-006-01": {
+    "slug": "chicken_tikka_masala",
+    "source": "wikipedia"
+  },
+  "d-007-03": {
+    "slug": "durum_mixed_grill",
+    "source": "wikipedia"
+  },
+  "d-007-10": {
+    "slug": "ayran",
+    "source": "wikipedia"
+  },
+  "d-008-01": {
+    "slug": "pizza_margherita_dop",
+    "source": "wikipedia"
+  },
+  "d-008-05": {
+    "slug": "burrata_pugliese",
+    "source": "wikipedia"
+  },
+  "d-008-09": {
+    "slug": "gnocchi_sorrentina",
+    "source": "wikipedia"
+  },
+  "d-008-10": {
+    "slug": "caprese_di_bufala",
+    "source": "wikipedia"
+  },
+  "d-009-03": {
+    "slug": "bun_bo_hue",
+    "source": "wikipedia"
+  },
+  "d-010-07": {
+    "slug": "chimichanga",
+    "source": "wikipedia"
+  },
+  "d-010-10": {
+    "slug": "horchata",
+    "source": "wikipedia"
+  },
+  "d-005-03": {
+    "slug": "bbq_bacon_burger",
+    "source": "wikipedia"
+  },
+  "d-005-07": {
+    "slug": "loaded_fries",
+    "source": "wikipedia"
+  },
+  "d-005-09": {
+    "slug": "mac_cheese_bites",
+    "source": "wikipedia"
+  },
+  "d-006-03": {
+    "slug": "paneer_butter_masala",
+    "source": "wikipedia"
+  },
+  "d-006-04": {
+    "slug": "vindaloo_hot",
+    "source": "wikipedia"
+  },
+  "d-006-05": {
+    "slug": "dal_makhani",
+    "source": "wikipedia"
+  },
+  "d-006-06": {
+    "slug": "garlic_naan",
+    "source": "wikipedia"
+  },
+  "d-006-07": {
+    "slug": "peshwari_naan",
+    "source": "wikipedia"
+  },
+  "d-006-11": {
+    "slug": "gulab_jamun_3",
+    "source": "wikipedia"
+  },
+  "d-007-02": {
+    "slug": "pita_kip_speciaal",
+    "source": "wikipedia"
+  },
+  "d-007-06": {
+    "slug": "mixed_grill_plate",
+    "source": "wikipedia"
+  },
+  "d-008-02": {
+    "slug": "tagliatelle_al_ragu",
+    "source": "wikipedia"
+  },
+  "d-008-03": {
+    "slug": "risotto_ai_funghi",
+    "source": "wikipedia"
+  },
+  "d-008-04": {
+    "slug": "vitello_tonnato",
+    "source": "wikipedia"
+  },
+  "d-008-06": {
+    "slug": "saltimbocca",
+    "source": "wikipedia"
+  },
+  "d-008-07": {
+    "slug": "tiramisu_casalingo",
+    "source": "wikipedia"
+  },
+  "d-009-04": {
+    "slug": "banh_mi_heo",
+    "source": "wikipedia"
+  },
+  "d-009-05": {
+    "slug": "goi_cuon_2",
+    "source": "wikipedia"
+  },
+  "d-009-06": {
+    "slug": "cha_gio_4",
+    "source": "wikipedia"
+  },
+  "d-009-07": {
+    "slug": "com_tam_suon",
+    "source": "wikipedia"
+  },
+  "d-009-09": {
+    "slug": "vietnamese_iced_coffee",
+    "source": "wikipedia"
+  },
+  "d-009-10": {
+    "slug": "che_ba_mau",
+    "source": "wikipedia"
+  },
+  "d-010-01": {
+    "slug": "tacos_al_pastor_3",
+    "source": "wikipedia"
+  },
+  "d-010-02": {
+    "slug": "tacos_carnitas_3",
+    "source": "wikipedia"
+  },
+  "d-010-03": {
+    "slug": "burrito_carne_asada",
+    "source": "wikipedia"
+  },
+  "d-010-05": {
+    "slug": "nachos_supreme",
+    "source": "wikipedia"
+  },
+  "d-010-06": {
+    "slug": "guacamole_chips",
+    "source": "wikipedia"
+  },
+  "d-010-08": {
+    "slug": "elote",
+    "source": "wikipedia"
+  }
+}

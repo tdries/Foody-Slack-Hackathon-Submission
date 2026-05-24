@@ -49,48 +49,64 @@ export function menuBlocks(
   menu: MenuItem[],
   sessionKey: string,
 ): Block[] {
-  const lines = menu.map(
-    (m) => `${m.emoji}  *${m.name}* — ${eur(m.price)}\n_${m.description ?? ""}_`,
-  );
-
-  return [
+  const blocks: Block[] = [
     {
       type: "header",
       text: { type: "plain_text", text: `🍴 ${restaurantName} — top picks`, emoji: true },
-    },
-    {
-      type: "section",
-      text: { type: "mrkdwn", text: lines.join("\n\n") },
     },
     {
       type: "context",
       elements: [
         {
           type: "mrkdwn",
-          text: "👇 *React with the emoji* next to a dish to add it. React again to add more. Remove your reaction to take one out.",
+          text: "Tap an emoji reaction below a dish to add it. React again to add more, remove your reaction to take one out.",
         },
       ],
     },
-    {
-      type: "actions",
-      elements: [
-        {
-          type: "button",
-          style: "primary",
-          text: { type: "plain_text", text: "🛒  Order", emoji: true },
-          action_id: "place_order",
-          value: sessionKey,
-        },
-        {
-          type: "button",
-          text: { type: "plain_text", text: "Cancel", emoji: true },
-          action_id: "cancel_session",
-          value: sessionKey,
-          style: "danger",
-        },
-      ],
-    },
+    { type: "divider" },
   ];
+
+  // One section block per dish keeps emoji-to-name alignment crisp regardless
+  // of how each emoji renders, and lets the description sit in a smaller
+  // context block immediately below.
+  for (const m of menu) {
+    blocks.push({
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: `${m.emoji.unicode}  *${m.name}*  ·  ${eur(m.price)}`,
+      },
+    });
+    if (m.description) {
+      blocks.push({
+        type: "context",
+        elements: [{ type: "mrkdwn", text: m.description }],
+      });
+    }
+  }
+
+  blocks.push({ type: "divider" });
+  blocks.push({
+    type: "actions",
+    elements: [
+      {
+        type: "button",
+        style: "primary",
+        text: { type: "plain_text", text: "🛒  Order", emoji: true },
+        action_id: "place_order",
+        value: sessionKey,
+      },
+      {
+        type: "button",
+        text: { type: "plain_text", text: "Cancel", emoji: true },
+        action_id: "cancel_session",
+        value: sessionKey,
+        style: "danger",
+      },
+    ],
+  });
+
+  return blocks;
 }
 
 export function cartBlocks(state: FoodyState): Block[] {
@@ -106,7 +122,7 @@ export function cartBlocks(state: FoodyState): Block[] {
   const lines = state.cart.map((line) => {
     const item = state.menu.find((m) => m.dishId === line.dishId);
     if (!item) return `• (unknown) × ${line.qty}`;
-    return `${item.emoji}  *${item.name}* × ${line.qty} — ${eur(item.price * line.qty)}`;
+    return `${item.emoji.unicode}  *${item.name}* × ${line.qty} — ${eur(item.price * line.qty)}`;
   });
   const subtotal = state.cart.reduce((s, l) => {
     const item = state.menu.find((m) => m.dishId === l.dishId);

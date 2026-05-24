@@ -70,6 +70,38 @@ npm run foody -- reset <user>
 
 `<user>` is just a state key — pass a Slack userId or anything you want; state is keyed by that string.
 
+## Custom dish emojis (optional but worth it)
+
+The bot ships with thematic standard emojis (`🍕 🌶️ 🧀 …`) per dish. You can replace them with real dish photos uploaded as workspace custom emojis. Two steps:
+
+### 1. Fetch the images
+
+```bash
+node scripts/fetch-dish-images.mjs
+```
+
+For every dish in the mock data this tries TheMealDB → Wikipedia page-image → category fallback. Results land in `data/dish-images/<slug>.png` (128×128 PNG, ≤128 KB each). It's idempotent — already-downloaded files are skipped. A `data/dish-images/manifest.json` keeps the dishId → slug map.
+
+### 2. Upload them to your Slack workspace
+
+Slack's bot API can't upload emojis (the official `admin.emoji.add` is Enterprise Grid only). So we go through the same path the Slack web client uses, authenticated with your *user* session token + `d` cookie. **This is against Slack's ToS, fine for personal/demo workspaces, not for anything you ship publicly.**
+
+Extract from your own browser session:
+
+| Value | Where |
+|---|---|
+| `FOODY_SLACK_TEAM_DOMAIN` | Workspace subdomain — the part before `.slack.com` in your URL (e.g. `biztory`). |
+| `FOODY_SLACK_D_COOKIE` | DevTools → Application → Cookies → `https://app.slack.com` → copy the value of `d`. |
+| `FOODY_SLACK_XOXC` | DevTools → Console → run `JSON.parse(decodeURIComponent(window.localStorage.localConfig_v2)).teams` → find your workspace entry → copy `token` (`xoxc-…`). |
+
+Drop those into `.env`, then:
+
+```bash
+node scripts/upload-emojis.mjs
+```
+
+The script uploads each `foody_<slug>` once, skips ones that already exist, and writes `uploaded: true` back into the manifest. Restart the bot (`npm run dev:slack`) — the manifest is loaded at startup and Foody now prefers your custom emojis, falling back to the thematic standard one for any dish that didn't get uploaded.
+
 ## Wiring real takeaway.com
 
 [src/takeaway.ts:42](src/takeaway.ts#L42) — replace the body of `fetchLive()` so it returns `{ restaurants, dishes }` in the same shape as [data/takeaway-mock.json](data/takeaway-mock.json). Everything downstream — top-3 ranking, top-10 dishes, the Slack flow — runs unchanged on real data.
