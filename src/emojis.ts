@@ -98,22 +98,31 @@ export function slackNameForUnicode(unicode: string): string | null {
   return UNICODE_TO_SLACK[unicode] ?? null;
 }
 
-/** Per-dish hint: prefer the workspace-uploaded custom emoji if present, else the thematic one. */
+/** Per-dish hint: prefer the workspace-uploaded custom emoji if present, else walk the thematic preference list. */
 export type DishEmojiHint = {
   /** Slack shortcode (no colons) of an uploaded custom emoji like "foody_margherita". */
   customSlack?: string;
-  /** Slack shortcode (no colons) of a standard food emoji like "pizza". */
-  thematicSlack?: string;
+  /** Ordered Slack shortcodes (no colons) — first non-colliding entry wins. */
+  thematicPrefs?: string[];
 };
 
 /**
  * Resolve one EmojiPair per dish, guaranteed unique within the list.
  *
  * Custom emojis are always preferred when supplied — their names are by
- * construction unique per dish. The unicode field for a custom emoji holds
- * its mrkdwn shortcode (`:foody_margherita:`) which Slack inlines as the
- * uploaded image. Thematic standard emojis fall back to FALLBACK_EMOJIS on
- * collision.
+ * construction unique per dish. Otherwise we walk each dish's thematic
+ * preference list (most-specific → most-generic) and pick the first option
+ * that isn't already taken. Only when an entire preference chain collides do
+ * we fall back to FALLBACK_EMOJIS (numbered badges).
+ *
+ * Example: five pizzas with prefs
+ *   Margherita → [tomato, cheese_wedge, pizza, pie]
+ *   Cipolla    → [onion, pizza, pie]
+ *   Funghi     → [mushroom, pizza, pie]
+ *   Peperoni   → [hot_pepper, pizza, pie]
+ *   Ananas     → [pineapple, pizza, pie]
+ * → each dish picks its first pref (tomato, onion, mushroom, hot_pepper,
+ *   pineapple) — no collisions, no numeric badges, all semantically meaningful.
  */
 export function assignUniqueEmojis(hints: DishEmojiHint[]): EmojiPair[] {
   const used = new Set<string>();
@@ -126,13 +135,18 @@ export function assignUniqueEmojis(hints: DishEmojiHint[]): EmojiPair[] {
       out.push({ unicode: `:${h.customSlack}:`, slack: h.customSlack });
       continue;
     }
-    if (h.thematicSlack) {
-      const candidate = emojiForSlackName(h.thematicSlack);
-      if (candidate && !used.has(candidate.slack)) {
-        used.add(candidate.slack);
-        out.push(candidate);
-        continue;
-      }
+    let assigned: EmojiPair | null = null;
+    for (const slackName of h.thematicPrefs ?? []) {
+      if (used.has(slackName)) continue;
+      const candidate = emojiForSlackName(slackName);
+      if (!candidate) continue;
+      assigned = candidate;
+      break;
+    }
+    if (assigned) {
+      used.add(assigned.slack);
+      out.push(assigned);
+      continue;
     }
     while (fallbackIdx < FALLBACK_EMOJIS.length && used.has(FALLBACK_EMOJIS[fallbackIdx].slack)) {
       fallbackIdx++;

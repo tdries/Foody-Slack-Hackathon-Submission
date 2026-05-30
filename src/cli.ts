@@ -150,10 +150,11 @@ async function cmdMenu(args: Args) {
 
   const dishes = await getTopDishes(restaurant.id, 10);
   const emojis = assignUniqueEmojis(
-    dishes.map((d) => ({ customSlack: d.customEmoji, thematicSlack: d.slackEmoji })),
+    dishes.map((d) => ({ customSlack: d.customEmoji, thematicPrefs: d.slackEmojiPrefs })),
   );
   const menu: MenuItem[] = dishes.map((d, i) => ({
     emoji: emojis[i],
+    takeawayDishName: d.takeawayDishName,
     dishId: d.id,
     name: d.name,
     price: d.price,

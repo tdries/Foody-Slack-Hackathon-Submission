@@ -1,5 +1,7 @@
 node_modules/
 state/*.json
+state/cache/
+state/debug-checkout/
 !state/.gitkeep
 .env
 .env.local
@@ -9,3 +11,7 @@ dist/
 
 # Per-workspace state — which custom emojis have been uploaded to *this* Slack.
 data/dish-images/uploaded.json
+
+# Exploratory probe artifacts from dev work — not part of the shipped repo.
+data/probe-*
+scripts/probe-*

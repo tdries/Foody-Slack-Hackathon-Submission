@@ -102,6 +102,44 @@ node scripts/upload-emojis.mjs
 
 The script uploads each `foody_<slug>` once, skips ones that already exist, and writes `uploaded: true` back into the manifest. Restart the bot (`npm run dev:slack`) — the manifest is loaded at startup and Foody now prefers your custom emojis, falling back to the thematic standard one for any dish that didn't get uploaded.
 
+## Real takeaway.com cart-build (opt-in)
+
+The bot has one **real** Belgian restaurant baked in — **Pizza Roma** in 9000 Gent — scraped from takeaway.com into `data/takeaway-real.json`. When you trigger Order on the real restaurant (not on the mock ones), Foody drives a Puppeteer session that:
+
+1. Connects to your **already-running Chrome** via remote debugging (so the cart appears in your *real, signed-in* browser, with your saved address and payment methods).
+2. Opens a new tab → sets the delivery address → navigates to the Pizza Roma menu page.
+3. For each dish in the shared Slack cart, finds the dish card by name and clicks through the modal to add it.
+4. Leaves the tab open at the cart screen — you finish payment manually.
+
+### Launch Chrome with remote debugging
+
+Quit Chrome first, then start it with the debug port:
+
+**macOS**
+```bash
+/Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome \
+  --remote-debugging-port=9222 \
+  --user-data-dir=/tmp/foody-chrome
+```
+
+(The separate `--user-data-dir` keeps this debug instance independent of your normal Chrome profile — recommended for sanity. To use your real profile and its saved logins, omit `--user-data-dir`. Quit your normal Chrome first if you do.)
+
+You can confirm the debug interface is live: `curl http://localhost:9222/json/version`.
+
+### Run an order
+
+In Slack: `let's eat something` → pick *Pizza Roma* → react to add dishes → hit **🛒 Order**. Foody posts "Building your cart on takeaway.com…", a new Chrome tab pops up, items get added, and a follow-up Slack message links you to the cart in your browser.
+
+The mock restaurants in `data/takeaway-mock.json` still go through the stubbed receipt path — only the real `takeawayUrl`-flagged ones drive a Puppeteer build.
+
+### Re-scrape
+
+If Pizza Roma's menu changes (or you want a different real restaurant), edit `scripts/scrape-pizza-roma.mjs` (the constants at the top) and re-run it.
+
+```bash
+node scripts/scrape-pizza-roma.mjs
+```
+
 ## Wiring real takeaway.com
 
 [src/takeaway.ts:42](src/takeaway.ts#L42) — replace the body of `fetchLive()` so it returns `{ restaurants, dishes }` in the same shape as [data/takeaway-mock.json](data/takeaway-mock.json). Everything downstream — top-3 ranking, top-10 dishes, the Slack flow — runs unchanged on real data.

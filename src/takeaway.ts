@@ -29,6 +29,9 @@ function loadUploaded(): Uploaded {
   }
 }
 
+/** Prefix used by scrape-live.ts to namespace live-scraped restaurant ids. */
+export const LIVE_RESTAURANT_ID_PREFIX = "rest-live-";
+
 export type Restaurant = {
   id: string;
   name: string;
@@ -39,6 +42,10 @@ export type Restaurant = {
   deliveryFee: number;
   minOrder: number;
   postcodes: string[]; // postcodes this restaurant serves
+  /** If set, this is a real takeaway.com restaurant; Foody will drive a real cart-build on Order. */
+  takeawayUrl?: string;
+  /** Set true on restaurants scraped from takeaway.com (vs mock). */
+  isReal?: boolean;
 };
 
 export type Dish = {
@@ -49,10 +56,14 @@ export type Dish = {
   price: number;
   popularity: number; // 0-100, used to rank "top 10"
   category?: string;
-  /** Preferred Slack emoji shortcode (no colons) for menu rendering. */
-  slackEmoji?: string;
+  /** Ordered preference list of Slack emoji shortcodes (no colons) for menu rendering. The first non-colliding one wins in assignUniqueEmojis. */
+  slackEmojiPrefs?: string[];
   /** Workspace-uploaded custom emoji shortcode (no colons), e.g. "foody_margherita". */
   customEmoji?: string;
+  /** Numeric takeaway.com dish id (from the Cloudinary URL) for real restaurants. */
+  takeawayDishId?: string | null;
+  /** Exact name string as it appears on takeaway.com, for DOM matching at cart-build time. */
+  takeawayDishName?: string;
 };
 
 type DataFile = {
@@ -64,19 +75,30 @@ let cache: DataFile | null = null;
 
 function loadData(): DataFile {
   if (cache) return cache;
-  const path = join(DATA_DIR, "takeaway-mock.json");
-  const raw = JSON.parse(readFileSync(path, "utf-8")) as DataFile;
+  const mockPath = join(DATA_DIR, "takeaway-mock.json");
+  const realPath = join(DATA_DIR, "takeaway-real.json");
+
+  const mock = JSON.parse(readFileSync(mockPath, "utf-8")) as DataFile;
+  const real: DataFile = existsSync(realPath)
+    ? (JSON.parse(readFileSync(realPath, "utf-8")) as DataFile)
+    : { restaurants: [], dishes: [] };
+
+  // Concatenate. Real and mock IDs are namespaced ("rest-real-*" vs "rest-NNN")
+  // so they never collide. Real restaurants get a slight rating bump in the
+  // listing — Foody's user-facing menus should preference the real data.
+  const merged: DataFile = {
+    restaurants: [...real.restaurants, ...mock.restaurants],
+    dishes: [...real.dishes, ...mock.dishes],
+  };
+
   const manifest = loadManifest();
   const uploaded = loadUploaded();
-  // Only stamp customEmoji for dishes whose image has been confirmed uploaded
-  // to this workspace (uploaded.json). The manifest alone isn't enough — image
-  // download is a separate step from Slack workspace upload, and the upload
-  // state is per-workspace so it's tracked separately.
-  for (const d of raw.dishes) {
+  for (const d of merged.dishes) {
     const entry = manifest[d.id];
     if (entry && uploaded[entry.slug]) d.customEmoji = `foody_${entry.slug}`;
   }
-  cache = raw;
+
+  cache = merged;
   return cache;
 }
 
@@ -86,37 +108,127 @@ function postcodeFromAddress(address: string): string | null {
 }
 
 /**
- * Live takeaway.com fetcher. Not yet wired up — takeaway.com has no public API
- * and rate-limits scrapers aggressively. To enable a real integration, replace
- * the body of this function with a fetch against the relevant endpoint and
- * return the same shape as the mock data.
+ * Live takeaway.com integration. Per-address listings and per-restaurant menus
+ * are scraped on demand via a long-lived headless puppeteer in scrape-live.ts
+ * and cached in-process. Any failure (Chrome won't launch, DOM changed, address
+ * not recognized) falls back silently to the static mock+real-static data so
+ * the bot never hangs.
  */
-async function fetchLive(_address: string): Promise<DataFile | null> {
-  return null;
+const liveListingsCache = new Map<string, Restaurant[]>();
+const liveMenuCache = new Map<string, Dish[]>();
+const liveDishById = new Map<string, Dish>();
+
+/** Has live scraping been disabled (e.g. via FOODY_DISABLE_LIVE=1) ? */
+const LIVE_DISABLED = process.env.FOODY_DISABLE_LIVE === "1";
+
+import { cacheGet, cacheSet } from "./disk-cache.ts";
+
+function listingsCacheKey(address: string, categoryId: string | null): string {
+  return `listings::${address.trim().toLowerCase()}::${categoryId ?? ""}`;
 }
 
-export async function findRestaurants(address: string, limit = 3): Promise<Restaurant[]> {
-  const live = await fetchLive(address);
-  const data = live ?? loadData();
-  const pc = postcodeFromAddress(address);
+function menuCacheKey(restaurantId: string): string {
+  return `menu::${restaurantId}`;
+}
 
+/** Hydrate in-memory caches from disk on first use so a fresh process starts warm. */
+function hydrateListingsFromDisk(address: string, categoryId: string | null): Restaurant[] | null {
+  const key = listingsCacheKey(address, categoryId);
+  const disk = cacheGet<Restaurant[]>(key);
+  if (!disk) return null;
+  liveListingsCache.set(`${address}::${categoryId ?? ""}`, disk);
+  return disk;
+}
+
+async function fetchLive(address: string, categoryId: string | null): Promise<Restaurant[] | null> {
+  if (LIVE_DISABLED) return null;
+  const memKey = `${address}::${categoryId ?? ""}`;
+  const cached = liveListingsCache.get(memKey) ?? hydrateListingsFromDisk(address, categoryId);
+  if (cached) return cached;
+  try {
+    const { scrapeListings } = await import("./scrape-live.ts");
+    const restaurants = await scrapeListings(address, 3, categoryId);
+    if (restaurants.length === 0) return null;
+    liveListingsCache.set(memKey, restaurants);
+    cacheSet(listingsCacheKey(address, categoryId), restaurants);
+    return restaurants;
+  } catch (err: any) {
+    console.warn(`[takeaway] live listings scrape failed for "${address}": ${err?.message ?? err}`);
+    return null;
+  }
+}
+
+export async function findRestaurants(
+  address: string,
+  limit = 3,
+  categoryId: string | null = null,
+): Promise<Restaurant[]> {
+  const live = await fetchLive(address, categoryId);
+  if (live && live.length > 0) return live.slice(0, limit);
+
+  // Fallback: static data. Real restaurants get a slight surfacing bump so the
+  // hand-curated entries win over equal-rated mocks. Category filter (if set)
+  // is applied against the cuisine field of the static entries.
+  const data = loadData();
+  const pc = postcodeFromAddress(address);
   let candidates = data.restaurants;
   if (pc) {
     const matched = candidates.filter((r) => r.postcodes.includes(pc));
     if (matched.length > 0) candidates = matched;
   }
-
+  if (categoryId) {
+    const { categoryById } = await import("./categories.ts");
+    const cat = categoryById(categoryId);
+    if (cat) {
+      const matched = candidates.filter((r) => cat.match.test(`${r.name} ${r.cuisine}`));
+      if (matched.length > 0) candidates = matched;
+    }
+  }
   return [...candidates]
-    .sort((a, b) => b.rating - a.rating || b.reviewCount - a.reviewCount)
+    .sort((a, b) => {
+      const realBias = (b.takeawayUrl ? 0.5 : 0) - (a.takeawayUrl ? 0.5 : 0);
+      return b.rating - a.rating + realBias || b.reviewCount - a.reviewCount;
+    })
     .slice(0, limit);
 }
 
 export async function getRestaurant(id: string): Promise<Restaurant | null> {
+  // Live cache first — listings scraped for any address might hold this id.
+  for (const list of liveListingsCache.values()) {
+    const r = list.find((r) => r.id === id);
+    if (r) return r;
+  }
   const data = loadData();
   return data.restaurants.find((r) => r.id === id) ?? null;
 }
 
 export async function getTopDishes(restaurantId: string, limit = 10): Promise<Dish[]> {
+  const cached = liveMenuCache.get(restaurantId) ?? cacheGet<Dish[]>(menuCacheKey(restaurantId));
+  if (cached) {
+    liveMenuCache.set(restaurantId, cached);
+    for (const d of cached) liveDishById.set(d.id, d);
+    return cached.slice(0, limit);
+  }
+
+  // Live restaurants — scrape the menu on first lookup, then cache.
+  const restaurant = await getRestaurant(restaurantId);
+  if (!LIVE_DISABLED && restaurant?.takeawayUrl && restaurantId.startsWith(LIVE_RESTAURANT_ID_PREFIX)) {
+    try {
+      const { scrapeMenu } = await import("./scrape-live.ts");
+      const dishes = await scrapeMenu(restaurant.takeawayUrl, restaurantId, limit);
+      if (dishes.length > 0) {
+        liveMenuCache.set(restaurantId, dishes);
+        for (const d of dishes) liveDishById.set(d.id, d);
+        cacheSet(menuCacheKey(restaurantId), dishes);
+        return dishes;
+      }
+    } catch (err: any) {
+      console.warn(
+        `[takeaway] live menu scrape failed for ${restaurantId}: ${err?.message ?? err}`,
+      );
+    }
+  }
+
   const data = loadData();
   return data.dishes
     .filter((d) => d.restaurantId === restaurantId)
@@ -125,6 +237,8 @@ export async function getTopDishes(restaurantId: string, limit = 10): Promise<Di
 }
 
 export async function getDish(dishId: string): Promise<Dish | null> {
+  const live = liveDishById.get(dishId);
+  if (live) return live;
   const data = loadData();
   return data.dishes.find((d) => d.id === dishId) ?? null;
 }

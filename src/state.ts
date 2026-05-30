@@ -6,6 +6,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const STATE_DIR = join(__dirname, "..", "state");
 
 import { slackNameForUnicode } from "./emojis.ts";
+import type { Restaurant } from "./takeaway.ts";
 
 export type CartLine = { dishId: string; qty: number };
 
@@ -15,6 +16,10 @@ export type MenuItem = {
   name: string;
   price: number;
   description?: string;
+  /** Exact takeaway.com dish name for DOM-matching at cart-build time, when this dish came from a real restaurant. */
+  takeawayDishName?: string;
+  /** Numeric takeaway.com dish id (parsed from /dishes/{id}/ in the image URL). Used to locate the row by image at cart-build time. */
+  takeawayDishId?: string | null;
 };
 
 /** What the bot is waiting on next in this conversation, if anything. */
@@ -23,8 +28,12 @@ export type PendingPrompt = "address" | null;
 export type FoodyState = {
   user: string;
   address: string | null;
+  /** Cuisine category id chosen by the user (see src/categories.ts). Null until picked. */
+  category: string | null;
   activeRestaurantId: string | null;
   activeRestaurantName: string | null;
+  /** Full Restaurant snapshot saved when the user picks one. Self-contained so a bot restart between pick and order can still complete checkout (the live in-memory cache is wiped on restart). */
+  activeRestaurant: Restaurant | null;
   menu: MenuItem[];
   cart: CartLine[];
   lastOrderId: string | null;
@@ -40,8 +49,10 @@ function emptyState(user: string): FoodyState {
   return {
     user,
     address: null,
+    category: null,
     activeRestaurantId: null,
     activeRestaurantName: null,
+    activeRestaurant: null,
     menu: [],
     cart: [],
     lastOrderId: null,

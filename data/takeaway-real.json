@@ -1,0 +1,83 @@
+{
+  "restaurants": [
+    {
+      "id": "rest-real-pizza-roma",
+      "name": "Pizza Roma",
+      "cuisine": "Italian",
+      "rating": 4.6,
+      "reviewCount": 0,
+      "deliveryTimeMin": 35,
+      "deliveryFee": 2.99,
+      "minOrder": 9,
+      "postcodes": [
+        "9000",
+        "9050",
+        "9051"
+      ],
+      "takeawayUrl": "https://www.takeaway.com/be-en/menu/pizza-roma-4",
+      "isReal": true
+    }
+  ],
+  "dishes": [
+    {
+      "id": "real-pr-1-8861198",
+      "restaurantId": "rest-real-pizza-roma",
+      "name": "Pizza Margherita (Medium)",
+      "description": "Pizza's medium",
+      "price": 13.95,
+      "popularity": 100,
+      "category": "Pizza's medium",
+      "slackEmoji": "pizza",
+      "takeawayDishId": "8861198",
+      "takeawayDishName": "Pizza Margherita (Medium)"
+    },
+    {
+      "id": "real-pr-2-8861198",
+      "restaurantId": "rest-real-pizza-roma",
+      "name": "Pizza Pepperoni Lovers (Medium)",
+      "description": "Pizza's medium",
+      "price": 13.95,
+      "popularity": 98,
+      "category": "Pizza's medium",
+      "slackEmoji": "pizza",
+      "takeawayDishId": "8861198",
+      "takeawayDishName": "Pizza Pepperoni Lovers (Medium)"
+    },
+    {
+      "id": "real-pr-3-8861198",
+      "restaurantId": "rest-real-pizza-roma",
+      "name": "Pizza Prosciutto (Medium)",
+      "description": "Pizza's medium",
+      "price": 13.95,
+      "popularity": 96,
+      "category": "Pizza's medium",
+      "slackEmoji": "pizza",
+      "takeawayDishId": "8861198",
+      "takeawayDishName": "Pizza Prosciutto (Medium)"
+    },
+    {
+      "id": "real-pr-4-noid",
+      "restaurantId": "rest-real-pizza-roma",
+      "name": "Pizza Only Pepperoni Lovers (Medium)",
+      "description": "Pizza's medium",
+      "price": 13.95,
+      "popularity": 94,
+      "category": "Pizza's medium",
+      "slackEmoji": "pizza",
+      "takeawayDishId": null,
+      "takeawayDishName": "Pizza Only Pepperoni Lovers (Medium)"
+    },
+    {
+      "id": "real-pr-5-noid",
+      "restaurantId": "rest-real-pizza-roma",
+      "name": "Top Menu 3",
+      "description": "Big Deals en menu's",
+      "price": 32.95,
+      "popularity": 92,
+      "category": "Big Deals en menu's",
+      "slackEmoji": "bento",
+      "takeawayDishId": null,
+      "takeawayDishName": "Top Menu 3"
+    }
+  ]
+}
