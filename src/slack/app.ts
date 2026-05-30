@@ -1,7 +1,6 @@
 import dotenv from "dotenv";
 import { readdirSync, readFileSync } from "node:fs";
-// override=true: this project's .env wins over any vars already in the shell,
-// so a stray `source ../Slackathon/.env` can't make Foody act as Veritype.
+// override=true: this project's .env wins over anything already in the shell.
 dotenv.config({ override: true });
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
