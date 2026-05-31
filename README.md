@@ -16,6 +16,10 @@ Someone in your channel types **“let's eat something.”** Foody picks up, run
 ![Puppeteer](https://img.shields.io/badge/Puppeteer-stealth-40B5A4?logo=puppeteer&logoColor=white)
 ![No LLM](https://img.shields.io/badge/runtime-deterministic%20·%20no%20LLM-2EB67D)
 
+<br>
+
+### 👉 Want to play with it? See **[DEMO.md](DEMO.md)** — join the Slack workspace and type *“let's eat something.”*
+
 </div>
 
 ---
@@ -173,6 +177,7 @@ npm run foody -- reset <user>
 
 | Doc | What it is |
 |---|---|
+| [DEMO.md](DEMO.md) | How to try Foody live (join link) and how to host your own always-on demo. |
 | [docs/DEVPOST.md](docs/DEVPOST.md) | The story: inspiration, what it does, how we built it, challenges, what's next. |
 | [docs/Foody-One-Pager.pdf](docs/Foody-One-Pager.pdf) | Commercial one-pager. |
 | [docs/Foody-Technical-One-Pager.pdf](docs/Foody-Technical-One-Pager.pdf) | Technical overview one-pager. |

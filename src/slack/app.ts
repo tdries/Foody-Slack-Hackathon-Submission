@@ -807,7 +807,10 @@ async function placeOrder(client: any, channel: string, threadTs: string, sess: 
   // Real restaurant? Drive a real cart-build in the user's Chrome.
   // We hold off on clearing the session until after the build attempt
   // succeeds, so a failed Chrome connection doesn't lose the cart.
-  if (restaurant.takeawayUrl) {
+  // In demo mode (FOODY_DISABLE_LIVE=1) we skip the Chrome path entirely and
+  // post the stub receipt, so a hosted/server demo never needs a desktop Chrome.
+  const demoMode = process.env.FOODY_DISABLE_LIVE === "1";
+  if (restaurant.takeawayUrl && !demoMode) {
     // Chrome must be reachable before we promise a build. If it isn't, prompt
     // the user to launch it up front — the button re-runs this whole flow once
     // Chrome is up, rather than failing partway through a "Building…" card.
