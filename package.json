@@ -6,6 +6,8 @@
   "type": "module",
   "scripts": {
     "dev:slack": "tsx watch src/slack/app.ts",
+    "start": "tsx src/slack/app.ts",
+    "start:demo": "FOODY_DISABLE_LIVE=1 tsx src/slack/app.ts",
     "foody": "tsx src/cli.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },

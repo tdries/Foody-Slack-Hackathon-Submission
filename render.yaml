@@ -1,0 +1,21 @@
+# Render blueprint — one standing Foody demo, always on.
+# A background worker (no public port) since Foody talks to Slack over Socket Mode.
+# Deploy: Render dashboard → New → Blueprint → point at this repo → set the 3 secrets.
+services:
+  - type: worker
+    name: foody-demo
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: starter
+    autoDeploy: true
+    envVars:
+      - key: FOODY_DISABLE_LIVE   # bulletproof mock mode — no scraping, no Chrome
+        value: "1"
+      - key: FOODY_LOG_LEVEL
+        value: info
+      - key: SLACK_BOT_TOKEN      # xoxb-…  (set in the dashboard, do not commit)
+        sync: false
+      - key: SLACK_APP_TOKEN      # xapp-…  (App-Level Token, connections:write)
+        sync: false
+      - key: SLACK_SIGNING_SECRET
+        sync: false

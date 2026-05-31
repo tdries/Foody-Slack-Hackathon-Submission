@@ -13,6 +13,8 @@
 import { writeFileSync, mkdirSync, existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { spawn } from "node:child_process";
+import { homedir } from "node:os";
 import puppeteer from "puppeteer-extra";
 import StealthPlugin from "puppeteer-extra-plugin-stealth";
 import type { FoodyState } from "./state.ts";
@@ -70,8 +72,8 @@ export type CartBuildResult = {
 };
 
 export type CartBuildProgress =
-  | { stage: "connecting" }
-  | { stage: "navigating" }
+  | { stage: "connecting"; note?: string }
+  | { stage: "navigating"; note?: string }
   | { stage: "adding"; current: number; total: number; itemName: string }
   | { stage: "done" }
   | { stage: "failed"; reason?: string };
@@ -138,6 +140,97 @@ async function connectToUserChrome() {
   }
 }
 
+/**
+ * Persistent profile dir for the Foody-launched Chrome. We deliberately do NOT
+ * reuse the user's default profile: attaching a debug port to an
+ * already-running default Chrome silently fails (the new flag-bearing process
+ * just hands off to the existing one). A dedicated dir always spawns a fresh
+ * process with the port live. It persists (not /tmp), so a takeaway.com login
+ * done once sticks across launches.
+ */
+const CHROME_PROFILE_DIR =
+  process.env.FOODY_CHROME_PROFILE_DIR ?? join(homedir(), ".foody-chrome");
+
+function chromeBinary(): string {
+  if (process.env.FOODY_CHROME_BIN) return process.env.FOODY_CHROME_BIN;
+  switch (process.platform) {
+    case "darwin":
+      return "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
+    case "win32":
+      return "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe";
+    default:
+      return "google-chrome";
+  }
+}
+
+/** Quick liveness probe of the DevTools endpoint — no Puppeteer attach. */
+export async function isChromeDebugUp(): Promise<boolean> {
+  try {
+    const res = await fetch(`http://${DEBUG_HOST}:${DEBUG_PORT}/json/version`, {
+      signal: AbortSignal.timeout(1500),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+export type ChromeLaunchResult = {
+  ok: boolean;
+  alreadyRunning: boolean;
+  message: string;
+};
+
+/**
+ * Spawn a detached Chrome with the remote-debugging port and wait for the
+ * DevTools endpoint to answer. Lets Slack offer a one-click "launch the basket
+ * builder" button instead of asking the user to run a terminal command.
+ */
+export async function launchUserChrome(
+  opts: { timeoutMs?: number } = {},
+): Promise<ChromeLaunchResult> {
+  if (await isChromeDebugUp()) {
+    return { ok: true, alreadyRunning: true, message: "Chrome debug port already up." };
+  }
+
+  const bin = chromeBinary();
+  try {
+    const child = spawn(
+      bin,
+      [
+        `--remote-debugging-port=${DEBUG_PORT}`,
+        `--user-data-dir=${CHROME_PROFILE_DIR}`,
+        "--no-first-run",
+        "--no-default-browser-check",
+        "about:blank",
+      ],
+      { detached: true, stdio: "ignore" },
+    );
+    child.on("error", () => {});
+    child.unref();
+  } catch (err: any) {
+    return {
+      ok: false,
+      alreadyRunning: false,
+      message: `Couldn't launch Chrome at "${bin}": ${err?.message ?? err}. Set FOODY_CHROME_BIN if it lives elsewhere.`,
+    };
+  }
+
+  const timeoutMs = opts.timeoutMs ?? 25_000;
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    if (await isChromeDebugUp()) {
+      return { ok: true, alreadyRunning: false, message: "Chrome launched with the debug port." };
+    }
+    await new Promise((r) => setTimeout(r, 500));
+  }
+  return {
+    ok: false,
+    alreadyRunning: false,
+    message: "Launched Chrome, but the debug port never came up in time.",
+  };
+}
+
 async function dismissCookies(page: any): Promise<void> {
   await new Promise((r) => setTimeout(r, 700));
   await page.evaluate(() => {
@@ -148,13 +241,20 @@ async function dismissCookies(page: any): Promise<void> {
   await new Promise((r) => setTimeout(r, 700));
 }
 
-async function ensureAddressSet(page: any, address: string): Promise<void> {
+async function ensureAddressSet(
+  page: any,
+  address: string,
+  onStep?: (note: string) => void | Promise<void>,
+): Promise<void> {
   // Probe the homepage's address input. If we're already in a session with a
   // saved address, the autocomplete-flow is a no-op; otherwise we drive it.
+  await onStep?.("Opening takeaway.com");
   await page.goto("https://www.takeaway.com/be-en", { waitUntil: "networkidle2", timeout: 60_000 });
+  await onStep?.("Clearing the cookie banner");
   await dismissCookies(page);
   const inputHandle = await page.$('input[name="searchText"]').catch(() => null);
   if (!inputHandle) return; // No search input visible — already past the gate.
+  await onStep?.(`Setting delivery to ${address}`);
   await inputHandle.click({ clickCount: 3 });
   await page.keyboard.press("Backspace");
   await page.type('input[name="searchText"]', address, { delay: 60 });
@@ -423,7 +523,7 @@ export async function buildCartOnTakeaway(
     return { ok: false, message: "No address set for this session.", added: [], failed: [] };
   }
 
-  await notify({ stage: "connecting" });
+  await notify({ stage: "connecting", note: "Connecting to your Chrome" });
   const launched = await connectToUserChrome();
 
   if (launched.missing) {
@@ -441,11 +541,15 @@ export async function buildCartOnTakeaway(
   const { browser, page } = launched as { browser: any; page: any };
 
   try {
-    await notify({ stage: "navigating" });
-    await ensureAddressSet(page, state.address);
+    await notify({ stage: "navigating", note: "Waking up the browser" });
+    await ensureAddressSet(page, state.address, (note) =>
+      notify({ stage: "navigating", note }),
+    );
 
+    await notify({ stage: "navigating", note: `Opening the ${restaurant.name} menu` });
     await page.goto(restaurant.takeawayUrl, { waitUntil: "networkidle2", timeout: 60_000 });
     await dismissCookies(page);
+    await notify({ stage: "navigating", note: "Reading the menu" });
     await new Promise((r) => setTimeout(r, 2000));
 
     await dumpHeadlessSnapshot(page, "menu-loaded");
