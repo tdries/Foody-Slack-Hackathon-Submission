@@ -7,11 +7,11 @@ on:
     branches: [main]
 
 jobs:
-  typecheck:
-    name: Typecheck
+  build:
+    name: Typecheck & test
     runs-on: ubuntu-latest
     env:
-      # Skip the ~150 MB Chromium download — not needed to typecheck.
+      # Skip the ~150 MB Chromium download — not needed to typecheck or unit-test.
       PUPPETEER_SKIP_DOWNLOAD: "1"
     steps:
       - uses: actions/checkout@v4
@@ -21,3 +21,4 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run typecheck
+      - run: npm test

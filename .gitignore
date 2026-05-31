@@ -29,3 +29,6 @@ docs/demo/video.txt
 
 # Build staging copy of the launch kit (the deliverable is Foody-Launch-Kit.zip)
 docs/Foody-Launch-Kit/
+
+# Launch kit archive — generated; attached to GitHub Releases, not committed
+docs/Foody-Launch-Kit.zip

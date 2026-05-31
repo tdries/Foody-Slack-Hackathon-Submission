@@ -33,7 +33,9 @@
     "start": "tsx src/slack/app.ts",
     "start:demo": "FOODY_DISABLE_LIVE=1 tsx src/slack/app.ts",
     "foody": "tsx src/cli.ts",
-    "typecheck": "tsc --noEmit -p tsconfig.json"
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@slack/bolt": "^4.1.1",
@@ -46,6 +48,7 @@
     "puppeteer-extra-plugin-stealth": "^2.11.2",
     "sharp": "^0.34.5",
     "tsx": "^4.19.2",
-    "typescript": "^5.7.2"
+    "typescript": "^5.7.2",
+    "vitest": "^4.1.7"
   }
 }
