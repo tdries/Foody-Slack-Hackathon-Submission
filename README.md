@@ -1,17 +1,17 @@
 <div align="center">
 
-<img src="docs/assets/foody-mark-tile.png" width="130" alt="Foody logo" />
+<img src="docs/assets/foody-banner.png" alt="Foody — Work hard, skip hangry" width="100%" />
 
-# Foody
+&nbsp;
 
-### *Work hard, skip hangry.*
-
-**A Slack-native group food-ordering bot that fronts takeaway.com.**
+**A Slack-native group food-ordering agent that fronts Takeaway.com.**
 
 Someone in your channel types **“let's eat something.”** Foody picks up, runs the whole order as a conversation, and builds one shared basket from everyone's emoji reactions.
 
 <br>
 
+[![CI](https://github.com/tdries/Foody-Slack-Hackathon-Submission/actions/workflows/ci.yml/badge.svg)](https://github.com/tdries/Foody-Slack-Hackathon-Submission/actions/workflows/ci.yml)
+[![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](LICENSE)
 ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white)
 ![Node.js](https://img.shields.io/badge/Node.js-22-339933?logo=node.js&logoColor=white)
 ![Slack Bolt](https://img.shields.io/badge/Slack-Bolt%20·%20Socket%20Mode-4A154B?logo=slack&logoColor=white)
@@ -43,6 +43,12 @@ Foody removes it. The team is already in Slack, and Slack already has a universa
 ## The order flow
 
 > A real run, start to finish. Five messages, one shared basket, one tap to order.
+
+<div align="center">
+
+![Foody — group lunch ordering in Slack, from “let's eat something” to a placed order](docs/Foody-Demo.gif)
+
+</div>
 
 ### 1 · Someone says “let's eat something”
 Foody greets the channel and confirms the delivery address. It's **sticky per Slack user** — asked once, remembered forever.
