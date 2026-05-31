@@ -202,6 +202,21 @@ export async function getRestaurant(id: string): Promise<Restaurant | null> {
   return data.restaurants.find((r) => r.id === id) ?? null;
 }
 
+/**
+ * Re-seed the in-memory live cache with a restaurant we already hold (e.g. a
+ * snapshot restored from a session after a restart). Lets getRestaurant /
+ * getTopDishes resolve it by id again without a re-scrape, so a pick made
+ * before the restart still works.
+ */
+export function primeRestaurant(restaurant: Restaurant): void {
+  const key = `__primed__`;
+  const list = liveListingsCache.get(key) ?? [];
+  if (!list.some((r) => r.id === restaurant.id)) {
+    list.push(restaurant);
+    liveListingsCache.set(key, list);
+  }
+}
+
 export async function getTopDishes(restaurantId: string, limit = 10): Promise<Dish[]> {
   const cached = liveMenuCache.get(restaurantId) ?? cacheGet<Dish[]>(menuCacheKey(restaurantId));
   if (cached) {

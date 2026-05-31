@@ -20,6 +20,7 @@ import {
   getRestaurant,
   getTopDishes,
   getDish,
+  primeRestaurant,
 } from "../takeaway.ts";
 import { assignUniqueEmojis } from "../emojis.ts";
 import {
@@ -33,11 +34,13 @@ import {
   categoryBlocks,
   menuCartBlocks,
   progressCardBlocks,
+  buildTickBlocks,
+  BUILD_SPINNER,
   lookupBlocks,
   receiptBlocks,
 } from "./blocks.ts";
 import { categoryById, CATEGORIES } from "../categories.ts";
-import { buildCartOnTakeaway } from "../checkout.ts";
+import { buildCartOnTakeaway, launchUserChrome, isChromeDebugUp } from "../checkout.ts";
 import { schedulePrewarm } from "../prewarm.ts";
 
 const { App } = pkg as unknown as { App: new (...args: any[]) => any };
@@ -100,6 +103,79 @@ function startLookupTicker(
   return () => clearInterval(interval);
 }
 
+/**
+ * Live, self-animating progress for the cart build. Unlike the discrete
+ * stage-by-stage updates, this re-renders on a timer so the bar is *always*
+ * moving (spinner + comet sweep + a percentage that creeps toward the top of
+ * the current phase's band) even while a single slow step — page load, address
+ * set, modal click — is in flight. The build's onProgress events just nudge the
+ * phase / sub-status; the ticker owns the rendering.
+ */
+function startBuildTicker(client: any, channel: string, ts: string, restaurantName: string) {
+  // Each phase owns a slice of the 0–100 bar. The bar creeps toward `hi` while
+  // a phase runs, then jumps to the next slice when the phase advances.
+  const BANDS: Record<"connecting" | "navigating" | "adding", [number, number]> = {
+    connecting: [4, 20],
+    navigating: [20, 52],
+    adding: [52, 97],
+  };
+  let phase: "connecting" | "navigating" | "adding" = "connecting";
+  let pct = BANDS.connecting[0];
+  let frame = 0;
+  let title = "👋  Foody's heading to the kitchen";
+  let subtitle = `Calling *${restaurantName}* on your behalf.`;
+
+  const render = async () => {
+    const spinner = BUILD_SPINNER[frame % BUILD_SPINNER.length];
+    try {
+      await client.chat.update({
+        channel,
+        ts,
+        text: title,
+        blocks: buildTickBlocks({ spinner, title, subtitle, pct, frame }),
+      });
+    } catch {
+      // rate limit / message deleted — skip this frame; next tick or the final
+      // update overwrites anyway.
+    }
+  };
+
+  void render();
+  const interval = setInterval(() => {
+    frame++;
+    const [lo, hi] = BANDS[phase];
+    if (pct < lo) pct = lo;
+    pct = Math.min(hi, pct + Math.max(0.5, (hi - pct) * 0.07));
+    void render();
+  }, 950);
+
+  return {
+    connecting(note?: string) {
+      phase = "connecting";
+      title = "👋  Foody's heading to the kitchen";
+      if (note) subtitle = `${note}…`;
+    },
+    navigating(note?: string) {
+      phase = "navigating";
+      title = "👩‍🍳  Foody's in the kitchen";
+      if (note) subtitle = `${note}…`;
+      if (pct < BANDS.navigating[0]) pct = BANDS.navigating[0];
+    },
+    adding(current: number, total: number, name: string) {
+      phase = "adding";
+      title = `🥘  Plating your order  (${current}/${total})`;
+      subtitle = `Adding *${name}* to the basket…`;
+      // Anchor the bar to how many dishes are done so it tracks real progress.
+      const [lo, hi] = BANDS.adding;
+      const target = lo + ((current - 1) / Math.max(1, total)) * (hi - lo);
+      if (pct < target) pct = target;
+    },
+    stop() {
+      clearInterval(interval);
+    },
+  };
+}
+
 /* ---------------------------------------------------------------------------
  * Helpers
  * ------------------------------------------------------------------------- */
@@ -123,6 +199,58 @@ function findSessionByMenuTs(channel: string, menuTs: string): FoodyState | null
     }
   }
   return null;
+}
+
+/**
+ * Rebuild the cart from the *actual* reactions on the menu message — the
+ * ground truth — rather than trusting our running tally of reaction events.
+ *
+ * Why: Socket Mode doesn't replay events missed during a disconnect (pong
+ * timeouts / ECONNRESET are common on flaky networks), so an incremental
+ * +1/-1 tally silently drifts from what's visibly on the message. Reconciling
+ * against `reactions.get` is self-healing: one click or one delivered event
+ * resyncs the whole cart. Each dish's qty = the number of non-bot users who
+ * reacted with that dish's emoji (Slack allows one reaction per user/emoji).
+ *
+ * Returns true if it could read the reactions (cart now authoritative), false
+ * if the API call failed (caller should keep the existing cart).
+ */
+async function reconcileCartFromReactions(
+  client: any,
+  channel: string,
+  state: FoodyState,
+): Promise<boolean> {
+  if (!state.menuMessageTs) return false;
+  let reactions: Array<{ name: string; count: number; users?: string[] }>;
+  try {
+    const res = await client.reactions.get({
+      channel,
+      timestamp: state.menuMessageTs,
+      full: true,
+    });
+    reactions = res.message?.reactions ?? [];
+  } catch (err: any) {
+    console.warn(`reconcile: reactions.get failed (${err?.data?.error ?? err})`);
+    return false;
+  }
+
+  const botId = BOT_USER_ID ?? "";
+  const nextCart: { dishId: string; qty: number }[] = [];
+  for (const m of state.menu) {
+    const r = reactions.find((x) => x.name === m.emoji.slack);
+    if (!r) continue;
+    const users = r.users ?? [];
+    // Prefer the explicit user list (lets us exclude our own pre-reaction).
+    // If Slack truncated it (>100 reactors), fall back to count − bot's react.
+    const qty =
+      r.count > users.length
+        ? r.count - (users.includes(botId) ? 1 : 0)
+        : users.filter((u) => u !== botId).length;
+    if (qty > 0) nextCart.push({ dishId: m.dishId, qty });
+  }
+  state.cart = nextCart;
+  saveState(state);
+  return true;
 }
 
 async function postCategoryPicker(
@@ -167,6 +295,10 @@ async function postRestaurants(
 
   const restaurants = await findRestaurants(state.address, 3, state.category);
   stopTicker();
+  // Snapshot the candidates so a pick still resolves if the bot restarts (wiping
+  // the in-memory live cache) between showing the list and the user clicking.
+  state.candidates = restaurants;
+  saveState(state);
   if (restaurants.length === 0) {
     await client.chat.update({
       channel,
@@ -412,11 +544,11 @@ for (const cat of CATEGORIES) {
     const threadTs: string = body.message.thread_ts ?? body.message.ts;
 
     const sess = loadState(key);
-    if (!sess.address) {
+    if (!recoverAddress(sess, body.user?.id)) {
       await client.chat.postMessage({
         channel,
         thread_ts: threadTs,
-        text: "I lost the address for this session — say _let's eat something_ again.",
+        text: "I don't have a delivery address for you yet — say _let's eat something_ to set one.",
       });
       return;
     }
@@ -439,18 +571,23 @@ app.action("pick_restaurant", async ({ ack, body, action, client }: any) => {
   const threadTs: string = body.message.thread_ts ?? body.message.ts;
 
   const sess = loadState(key);
-  if (!sess.address) {
+  if (!recoverAddress(sess, body.user?.id)) {
     await client.chat.postMessage({
       channel,
       thread_ts: threadTs,
-      text: "I lost the address for this session — say _let's eat something_ again.",
+      text: "I don't have a delivery address for you yet — say _let's eat something_ to set one.",
     });
     return;
   }
 
   // Snapshot the full restaurant into the session so a bot restart between
   // pick and order doesn't lose it (the live in-memory cache is wiped on restart).
-  const picked = await getRestaurant(restaurantId);
+  // Try the live cache, then fall back to the candidates we snapshotted on the
+  // session when the list was posted — that survives a restart.
+  const picked =
+    (await getRestaurant(restaurantId)) ??
+    sess.candidates.find((r) => r.id === restaurantId) ??
+    null;
   if (!picked) {
     await client.chat.postMessage({
       channel,
@@ -459,7 +596,11 @@ app.action("pick_restaurant", async ({ ack, body, action, client }: any) => {
     });
     return;
   }
+  // Re-warm the live cache so the downstream menu scrape (getTopDishes →
+  // getRestaurant) can resolve this id even if a restart wiped the cache.
+  primeRestaurant(picked);
   sess.activeRestaurantId = restaurantId;
+  sess.activeRestaurantName = picked.name;
   sess.activeRestaurant = picked;
   saveState(sess);
 
@@ -514,12 +655,18 @@ app.event("reaction_added", async ({ event, client }: any) => {
     console.log(`[reaction_added] reaction :${event.reaction}: not in menu (menu emojis: ${sess.menu.map((m) => m.emoji.slack).join(", ")})`);
     return;
   }
-  console.log(`[reaction_added] adding "${menuItem.name}" to cart in ${sess.user}`);
+  console.log(`[reaction_added] "${menuItem.name}" reacted — reconciling cart in ${sess.user}`);
 
-  const existing = sess.cart.find((l) => l.dishId === menuItem.dishId);
-  if (existing) existing.qty += 1;
-  else sess.cart.push({ dishId: menuItem.dishId, qty: 1 });
-  saveState(sess);
+  // Rebuild from the message's real reactions so any events dropped during a
+  // socket blip are recovered, not just this one +1.
+  const ok = await reconcileCartFromReactions(client, channel, sess);
+  if (!ok) {
+    // API read failed — fall back to a best-effort increment so we don't ignore the click.
+    const existing = sess.cart.find((l) => l.dishId === menuItem.dishId);
+    if (existing) existing.qty += 1;
+    else sess.cart.push({ dishId: menuItem.dishId, qty: 1 });
+    saveState(sess);
+  }
 
   await postCart(client, channel, sess);
 });
@@ -538,13 +685,16 @@ app.event("reaction_removed", async ({ event, client }: any) => {
   const menuItem = sess.menu.find((m) => m.emoji.slack === event.reaction);
   if (!menuItem) return;
 
-  const existing = sess.cart.find((l) => l.dishId === menuItem.dishId);
-  if (!existing) return;
-  existing.qty -= 1;
-  if (existing.qty <= 0) {
-    sess.cart = sess.cart.filter((l) => l.dishId !== menuItem.dishId);
+  // Same as add: rebuild from ground truth so the cart matches the message.
+  const ok = await reconcileCartFromReactions(client, channel, sess);
+  if (!ok) {
+    const existing = sess.cart.find((l) => l.dishId === menuItem.dishId);
+    if (existing) {
+      existing.qty -= 1;
+      if (existing.qty <= 0) sess.cart = sess.cart.filter((l) => l.dishId !== menuItem.dishId);
+      saveState(sess);
+    }
   }
-  saveState(sess);
 
   await postCart(client, channel, sess);
 });
@@ -553,7 +703,71 @@ app.event("reaction_removed", async ({ event, client }: any) => {
  * place_order button + cancel
  * ------------------------------------------------------------------------- */
 
+/**
+ * The address is sticky per Slack user (kept in the `addr_<userId>` book), and
+ * the session only mirrors it. If a session ever turns up without one — a stale
+ * button from a wiped thread, a key that never got the address written, a
+ * cross-thread click — recover it from the address book instead of dead-ending
+ * the user with "say let's eat again". We try the session's initiator first,
+ * then whoever clicked. Returns the address (and persists it back onto the
+ * session) or null if the user genuinely has no saved address.
+ */
+function recoverAddress(sess: FoodyState, clickedBy?: string): string | null {
+  if (sess.address) return sess.address;
+  for (const uid of [sess.initiator, clickedBy]) {
+    if (!uid) continue;
+    const saved = getDefaultAddress(uid);
+    if (saved) {
+      sess.address = saved;
+      if (!sess.initiator) sess.initiator = uid;
+      saveState(sess);
+      return saved;
+    }
+  }
+  return null;
+}
+
+/**
+ * The "launch the basket builder" prompt. Shown up front when Chrome's debug
+ * port isn't reachable, so the user launches it before any build is attempted.
+ */
+function chromeLaunchPromptBlocks(key: string): any[] {
+  return [
+    {
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text:
+          "*🔌  Basket builder needs Chrome*\n" +
+          "Foody fills your takeaway.com basket in a *background Chrome tab* — it's not running yet. " +
+          "Click below and Foody will launch it and finish your order. " +
+          "_(The first time, sign into takeaway.com in that window so your address & payment are ready.)_",
+      },
+    },
+    {
+      type: "actions",
+      elements: [
+        {
+          type: "button",
+          style: "primary",
+          text: {
+            type: "plain_text",
+            text: "🚀 Launch basket builder in background to proceed",
+            emoji: true,
+          },
+          action_id: "launch_chrome",
+          value: key,
+        },
+      ],
+    },
+  ];
+}
+
 async function placeOrder(client: any, channel: string, threadTs: string, sess: FoodyState) {
+  recoverAddress(sess); // address is sticky per user — re-hydrate if the session dropped it
+  // Last-chance sync: make the order reflect the reactions actually on the menu
+  // message, in case a reaction event was dropped while the socket was down.
+  await reconcileCartFromReactions(client, channel, sess);
   if (!sess.address || !sess.activeRestaurantId || sess.cart.length === 0) {
     await client.chat.postMessage({
       channel,
@@ -594,6 +808,19 @@ async function placeOrder(client: any, channel: string, threadTs: string, sess: 
   // We hold off on clearing the session until after the build attempt
   // succeeds, so a failed Chrome connection doesn't lose the cart.
   if (restaurant.takeawayUrl) {
+    // Chrome must be reachable before we promise a build. If it isn't, prompt
+    // the user to launch it up front — the button re-runs this whole flow once
+    // Chrome is up, rather than failing partway through a "Building…" card.
+    if (!(await isChromeDebugUp())) {
+      await client.chat.postMessage({
+        channel,
+        thread_ts: threadTs,
+        text: "Launch the basket builder to continue",
+        blocks: chromeLaunchPromptBlocks(sessionKey(channel, threadTs)),
+      });
+      return;
+    }
+
     // Single live message that morphs through connecting → opening → adding → done.
     const totalLines = sess.cart.length;
     const initialBlocks = progressCardBlocks({
@@ -617,33 +844,17 @@ async function placeOrder(client: any, channel: string, threadTs: string, sess: 
       }
     };
 
+    // Self-animating progress card — keeps the bar moving between events.
+    const tick = startBuildTicker(client, channel, progressTs, restaurant.name);
     const result = await buildCartOnTakeaway(sess, restaurant, {
       onProgress: async (event) => {
-        if (event.stage === "connecting") {
-          await updateProgress(
-            progressCardBlocks({ restaurantName: restaurant.name, stage: "connecting", total: totalLines }),
-            "Connecting to your Chrome…",
-          );
-        } else if (event.stage === "navigating") {
-          await updateProgress(
-            progressCardBlocks({ restaurantName: restaurant.name, stage: "navigating", total: totalLines }),
-            `Opening ${restaurant.name}…`,
-          );
-        } else if (event.stage === "adding") {
-          await updateProgress(
-            progressCardBlocks({
-              restaurantName: restaurant.name,
-              stage: "adding",
-              current: event.current,
-              total: event.total,
-              detail: event.itemName,
-            }),
-            `Adding ${event.itemName} (${event.current}/${event.total})…`,
-          );
-        }
+        if (event.stage === "connecting") tick.connecting(event.note);
+        else if (event.stage === "navigating") tick.navigating(event.note);
+        else if (event.stage === "adding") tick.adding(event.current, event.total, event.itemName);
         // 'done' and 'failed' are rendered below with the final payload (has url + failedItems).
       },
     });
+    tick.stop();
 
     if (result.ok) {
       sess.lastOrderId = orderId;
@@ -657,17 +868,10 @@ async function placeOrder(client: any, channel: string, threadTs: string, sess: 
     }
 
     if (result.needsLink) {
+      // Chrome dropped between the up-front check and the build — re-offer the launch.
       await updateProgress(
-        [
-          {
-            type: "section",
-            text: {
-              type: "mrkdwn",
-              text: `*🔌  Foody-Chrome not running*\n${result.message}`,
-            },
-          },
-        ],
-        "Chrome not reachable",
+        chromeLaunchPromptBlocks(sessionKey(channel, threadTs)),
+        "Launch the basket builder to continue",
       );
       return;
     }
@@ -724,6 +928,80 @@ app.action("place_order", async ({ ack, body, action, client }: any) => {
 });
 
 /**
+ * "Launch basket builder in background to proceed" — shown when the cart-build
+ * couldn't reach Chrome. Spawns a detached Chrome with the debug port, waits
+ * for it to come up, then re-runs the order against the same session.
+ */
+app.action("launch_chrome", async ({ ack, body, action, client }: any) => {
+  await ack();
+  const key: string = action.value;
+  const channel: string = body.channel.id;
+  const threadTs: string = body.message.thread_ts ?? body.message.ts;
+  const messageTs: string = body.message.ts;
+
+  await client.chat
+    .update({
+      channel,
+      ts: messageTs,
+      text: "Launching the basket builder…",
+      blocks: [
+        {
+          type: "section",
+          text: {
+            type: "mrkdwn",
+            text: "*🚀  Launching the basket builder…*\nStarting a background Chrome with the debug port — this takes a few seconds.",
+          },
+        },
+      ],
+    })
+    .catch(() => {});
+
+  const launch = await launchUserChrome();
+  if (!launch.ok) {
+    await client.chat
+      .update({
+        channel,
+        ts: messageTs,
+        text: "Couldn't launch the basket builder",
+        blocks: [
+          {
+            type: "section",
+            text: {
+              type: "mrkdwn",
+              text:
+                `*⚠️  Couldn't launch the basket builder*\n${launch.message}\n\n` +
+                "You can still start it by hand:\n" +
+                '`open -a "Google Chrome" --args --remote-debugging-port=9222`',
+            },
+          },
+        ],
+      })
+      .catch(() => {});
+    return;
+  }
+
+  await client.chat
+    .update({
+      channel,
+      ts: messageTs,
+      text: "Basket builder ready",
+      blocks: [
+        {
+          type: "section",
+          text: {
+            type: "mrkdwn",
+            text: "*✅  Basket builder ready*\nChrome is up — building your basket now.",
+          },
+        },
+      ],
+    })
+    .catch(() => {});
+
+  const sess = loadState(key);
+  await placeOrder(client, channel, threadTs, sess);
+});
+
+/**
  * Walks every reply in a thread and deletes the ones posted by us. Keeps the
  * thread root (the user's "let's eat" message) and any non-bot messages
  * (user chatter) intact. Used by Cancel to fully clear the thread back to a
@@ -771,7 +1049,7 @@ app.action("cancel_session", async ({ ack, body, action, client }: any) => {
   const threadTs: string = body.message.thread_ts ?? body.message.ts;
 
   const sess = loadState(key);
-  const address = sess.address;
+  const address = recoverAddress(sess, body.user?.id);
 
   // Sweep every bot message in this thread — the menu+cart card, the
   // restaurants list (or its collapsed "Picked X" remnant), every progress

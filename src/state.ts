@@ -34,6 +34,8 @@ export type FoodyState = {
   activeRestaurantName: string | null;
   /** Full Restaurant snapshot saved when the user picks one. Self-contained so a bot restart between pick and order can still complete checkout (the live in-memory cache is wiped on restart). */
   activeRestaurant: Restaurant | null;
+  /** The top-3 restaurants shown in the list, snapshotted so a pick still resolves after the in-memory live cache is wiped by a restart. */
+  candidates: Restaurant[];
   menu: MenuItem[];
   cart: CartLine[];
   lastOrderId: string | null;
@@ -53,6 +55,7 @@ function emptyState(user: string): FoodyState {
     activeRestaurantId: null,
     activeRestaurantName: null,
     activeRestaurant: null,
+    candidates: [],
     menu: [],
     cart: [],
     lastOrderId: null,
