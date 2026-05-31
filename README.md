@@ -236,7 +236,7 @@ npm run foody -- reset <user>
 
 Foody is built to plug into an official partner API the moment access is available — turning this from a clever hackathon agent into a production-grade ordering experience for **every Slack team**. The hard part (the Slack-native UX) is done; we just need the front door to the menus and baskets.
 
-👉 **Open an issue on this repo**, or reach the maintainer at **tim.dries@biztory.be**
+👉 **Open an issue on this repo**, or reach the maintainer at **timdries@hotmail.com**
 
 </div>
 
