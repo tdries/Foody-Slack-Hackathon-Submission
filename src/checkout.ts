@@ -86,6 +86,12 @@ export type CartBuildOptions = {
 const DEBUG_PORT = Number(process.env.FOODY_CHROME_DEBUG_PORT ?? "9222");
 const DEBUG_HOST = process.env.FOODY_CHROME_DEBUG_HOST ?? "localhost";
 
+// takeaway.com market to drive the basket on. Matches scrape-live's LOCALE so
+// checkout opens the same country's site the menu was discovered on. Restaurant
+// URLs already carry their locale; this is just for the address-set homepage.
+const TAKEAWAY_LOCALE = (process.env.FOODY_TAKEAWAY_LOCALE ?? "be-en").trim();
+const TAKEAWAY_HOME = `https://www.takeaway.com/${TAKEAWAY_LOCALE}`;
+
 /**
  * We attach to the user's already-running Chrome via the DevTools Protocol.
  * Two reasons we can't just launch our own headless / hidden Chrome:
@@ -249,7 +255,7 @@ async function ensureAddressSet(
   // Probe the homepage's address input. If we're already in a session with a
   // saved address, the autocomplete-flow is a no-op; otherwise we drive it.
   await onStep?.("Opening takeaway.com");
-  await page.goto("https://www.takeaway.com/be-en", { waitUntil: "networkidle2", timeout: 60_000 });
+  await page.goto(TAKEAWAY_HOME, { waitUntil: "networkidle2", timeout: 60_000 });
   await onStep?.("Clearing the cookie banner");
   await dismissCookies(page);
   const inputHandle = await page.$('input[name="searchText"]').catch(() => null);

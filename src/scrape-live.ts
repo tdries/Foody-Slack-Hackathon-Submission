@@ -18,6 +18,15 @@ import { categoryById } from "./categories.ts";
 
 puppeteer.use(StealthPlugin());
 
+/**
+ * Which takeaway.com market to scrape. Defaults to Belgium (`be-en`) but is
+ * configurable so Foody isn't hardcoded to one country — any takeaway.com locale
+ * that shares this DOM (e.g. `nl`) works without code changes. Other Just Eat
+ * brands / providers would each need their own adapter.
+ */
+const LOCALE = (process.env.FOODY_TAKEAWAY_LOCALE ?? "be-en").trim();
+const HOME_URL = `https://www.takeaway.com/${LOCALE}`;
+
 let cachedBrowser: any = null;
 
 async function getBrowser() {
@@ -53,7 +62,7 @@ async function dismissCookies(page: any) {
 }
 
 async function setAddress(page: any, address: string) {
-  await page.goto("https://www.takeaway.com/be-en", { waitUntil: "networkidle2", timeout: 60_000 });
+  await page.goto(HOME_URL, { waitUntil: "networkidle2", timeout: 60_000 });
   await dismissCookies(page);
   const input = await page.$('input[name="searchText"]');
   if (!input) throw new Error("address input not found on homepage");
@@ -234,16 +243,17 @@ async function scrapeListingsOnce(
       deliveryFee: number | null;
       minOrder: number | null;
       text: string;
-    }> = await page.evaluate((scanLimit: number) => {
+    }> = await page.evaluate(({ scanLimit, locale }: { scanLimit: number; locale: string }) => {
       // @ts-ignore — esbuild (tsx) emits __name() calls for named arrows; shim in the browser.
       if (typeof (globalThis as any).__name !== "function") (globalThis as any).__name = (fn: any) => fn;
-      const anchors = Array.from(document.querySelectorAll('a[href*="/be-en/menu/"]')) as HTMLAnchorElement[];
+      const anchors = Array.from(document.querySelectorAll(`a[href*="/${locale}/menu/"]`)) as HTMLAnchorElement[];
+      const slugRe = new RegExp(`/${locale}/menu/([^/?#]+)`);
       const seen = new Set<string>();
       const result: any[] = [];
       for (const a of anchors) {
         if (result.length >= scanLimit) break;
         const href = a.href;
-        const slugMatch = href.match(/\/be-en\/menu\/([^/?#]+)/);
+        const slugMatch = href.match(slugRe);
         if (!slugMatch) continue;
         const slug = slugMatch[1];
         if (seen.has(slug)) continue;
@@ -287,7 +297,7 @@ async function scrapeListingsOnce(
         });
       }
       return result;
-    }, scanLimit);
+    }, { scanLimit, locale: LOCALE });
 
     // Category filter: match against name + cuisine + body text. If the
     // filter rejects everything, fall back silently to the unfiltered top
