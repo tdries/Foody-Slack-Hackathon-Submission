@@ -6,13 +6,15 @@
 
 </div>
 
-Foody lives **inside Slack**, so "playing with it" means hopping into a Slack workspace where Foody is running and typing one phrase. No install, no signup.
+Foody lives **inside Slack**, so "playing with it" means hopping into the demo workspace where Foody is running and typing one phrase.
+
+**👉 Join here:** <https://join.slack.com/t/veritype-demo/shared_invite/zt-3z90xcqzk-H~q5ZZUV9eHT5fetkAse4A> — then open **`#foody-demo`** and type *“let's eat something.”*
 
 ---
 
 ## 👩‍⚖️ For judges — the fastest path
 
-> 1. **Join the demo workspace:** **[ ⟶ paste your Slack invite link here ⟵ ]**
+> 1. **Join the demo workspace:** **<https://join.slack.com/t/veritype-demo/shared_invite/zt-3z90xcqzk-H~q5ZZUV9eHT5fetkAse4A>**
 > 2. Open the **`#foody-demo`** channel.
 > 3. Type: **`let's eat something`**
 > 4. Pick a cuisine → pick a restaurant → **tap the emoji reactions** under the dishes to build a shared basket → hit **🛒 Order now**.

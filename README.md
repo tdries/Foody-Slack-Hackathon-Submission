@@ -18,7 +18,7 @@ Someone in your channel types **“let's eat something.”** Foody picks up, run
 
 <br>
 
-### 👉 Want to play with it? See **[DEMO.md](DEMO.md)** — join the Slack workspace and type *“let's eat something.”*
+### 👉 Try it live: **[join the demo Slack](https://join.slack.com/t/veritype-demo/shared_invite/zt-3z90xcqzk-H~q5ZZUV9eHT5fetkAse4A)**, open `#foody-demo`, and type *“let's eat something.”*  ·  full guide in **[DEMO.md](DEMO.md)**
 
 </div>
 
