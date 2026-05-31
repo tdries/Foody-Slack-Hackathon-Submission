@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Foody — sequence (today)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --red:#E23B2E; --green:#2EB67D; --yellow:#ECB22E; --blue:#1D9BD1; --purple:#7C5CBF; --auber:#4A154B;
+    --bg:#F6F5F1; --surface:#FFFFFF; --ink:#2D2D2D; --ink-soft:#5B5B5B; --line:#E0DED7; --dark:#1A1D21;
+    --amber:#C77700; --amberbg:#FBEFD6;
+    --display:"Poppins","Inter",system-ui,sans-serif; --body:"Inter",system-ui,sans-serif; --mono:"JetBrains Mono",monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{background:#cfcfca}
+  body{font-family:var(--body);color:var(--ink);-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  @page{size:A4 landscape;margin:0}
+  .page{width:297mm;height:210mm;background:var(--bg);position:relative;overflow:hidden;display:flex;flex-direction:column;padding:9mm 12mm 7mm}
+
+  header{display:flex;align-items:center;gap:12px;position:relative;z-index:3}
+  .mark{width:42px;height:42px;border-radius:10px;object-fit:cover}
+  .brand h1{font-family:var(--display);font-weight:800;font-size:22px;letter-spacing:-.6px;line-height:1}
+  .brand .sub{font-family:var(--display);font-weight:600;font-size:11.5px;color:var(--ink-soft);margin-top:2px}
+  .pill{margin-left:auto;background:var(--amberbg);color:var(--amber);border:1px solid #E9C879;border-radius:999px;padding:8px 15px;font-family:var(--display);font-weight:700;font-size:12px}
+
+  .legend{display:flex;gap:14px;margin-top:7px;position:relative;z-index:3;font-size:10px;color:var(--ink-soft);align-items:center;flex-wrap:wrap}
+  .legend .k{display:flex;align-items:center;gap:5px;font-weight:600}
+  .legend .sw{width:18px;height:0;border-top:2.5px solid;display:inline-block}
+  .legend .mono{font-family:var(--mono)}
+
+  /* install band */
+  .install{margin-top:8px;position:relative;z-index:3;background:var(--dark);color:#E7E8EA;border-radius:11px;padding:9px 14px;display:flex;align-items:center;gap:13px}
+  .install .b0{width:24px;height:24px;border-radius:50%;background:#fff;color:var(--dark);font-family:var(--display);font-weight:800;font-size:13px;display:flex;align-items:center;justify-content:center;flex:0 0 auto}
+  .install .txt{font-size:11px;line-height:1.45}
+  .install .txt b{color:#fff;font-family:var(--display)}
+  .install .txt code{font-family:var(--mono);font-size:10px;background:#2a2d31;border:1px solid #3a3d42;border-radius:4px;padding:0 4px;color:#cfe9f6}
+
+  /* sequence */
+  .seq{flex:1;position:relative;margin-top:9px}
+  .heads{display:flex;position:relative;z-index:3;height:42px}
+  .heads .h{flex:1;display:flex;justify-content:center}
+  .heads .chip{display:flex;flex-direction:column;align-items:center;gap:2px;font-family:var(--display);font-weight:700;font-size:12px;color:#fff;border-radius:9px;padding:6px 14px;min-width:150px;text-align:center}
+  .heads .chip small{font-family:var(--mono);font-weight:500;font-size:8.5px;opacity:.85}
+  .heads .h:nth-child(1) .chip{background:var(--purple)} .heads .h:nth-child(2) .chip{background:var(--auber)}
+  .heads .h:nth-child(3) .chip{background:var(--dark)} .heads .h:nth-child(4) .chip{background:#8A8D92}
+  .lifelines{position:absolute;left:0;right:0;top:42px;bottom:0;z-index:0}
+  .lifelines i{position:absolute;top:0;bottom:0;border-left:2px dashed #D6D4CC;transform:translateX(-1px)}
+
+  .rows{position:relative;z-index:2;padding-top:6px}
+  .step{position:relative;height:43px}
+  .msg{position:absolute;top:25px;height:0;border-top:2.5px solid var(--c)}
+  .msg .num{position:absolute;top:-10px;width:19px;height:19px;border-radius:50%;background:var(--c);color:#fff;font-family:var(--display);font-weight:800;font-size:10px;line-height:19px;text-align:center;z-index:4}
+  .msg.r .num{left:-10px} .msg.l .num{right:-10px}
+  .msg .lab{position:absolute;top:-17px;left:50%;transform:translateX(-50%);white-space:nowrap;font-family:var(--mono);font-weight:500;font-size:9.5px;color:#34373c;background:var(--bg);padding:0 6px}
+  .msg .lab b{color:var(--ink);font-weight:600}
+  .msg::after{content:"";position:absolute;top:-5.5px;width:0;height:0;border:5.5px solid transparent}
+  .msg.r::after{right:-1px;border-left-color:var(--c);border-right-width:0}
+  .msg.l::after{left:-1px;border-right-color:var(--c);border-left-width:0}
+  .msg.bi::before{content:"";position:absolute;top:-5.5px;left:-1px;width:0;height:0;border:5.5px solid transparent;border-right-color:var(--c);border-left-width:0}
+  .msg.dash{border-top-style:dashed}
+  .warnflag{position:absolute;top:-30px;left:50%;transform:translateX(-50%);white-space:nowrap;font-family:var(--display);font-weight:700;font-size:8.5px;color:var(--amber);background:#fff;border:1px solid #E9C879;border-radius:999px;padding:1px 7px}
+
+  .foot{margin-top:5px;font-size:10px;color:var(--ink-soft);position:relative;z-index:3;border-top:1px solid var(--line);padding-top:6px;display:flex;gap:16px}
+  .foot b{color:var(--ink)} .foot .amber{color:var(--amber);font-weight:700}
+  .barbar{display:inline-flex;gap:3px;vertical-align:middle;margin-right:5px}.barbar i{width:5px;height:12px;border-radius:99px;display:block}
+</style>
+</head>
+<body>
+<div class="page">
+  <header>
+    <img class="mark" src="assets/foody-mark-tile.png" alt="Foody">
+    <div class="brand"><h1>Foody — request sequence (today)</h1><div class="sub">An installed Slack agent · how one lunch order flows, end to end</div></div>
+    <div class="pill">⚠ Steps 4 &amp; 9 use browser automation</div>
+  </header>
+
+  <div class="legend">
+    <span class="k"><span class="sw" style="border-color:var(--auber)"></span>Slack event (Events API, over Socket Mode)</span>
+    <span class="k"><span class="sw" style="border-color:var(--blue)"></span>Slack Web API call</span>
+    <span class="k"><span class="sw" style="border-color:var(--purple)"></span>Human action</span>
+    <span class="k"><span class="sw" style="border-color:var(--amber)"></span>Browser automation — fragile today</span>
+    <span class="k"><span class="sw" style="border-color:var(--green)"></span>Result</span>
+  </div>
+
+  <div class="install">
+    <div class="b0">0</div>
+    <div class="txt"><b>Installed once →</b> Admin adds Foody from the <code>manifest.yml</code> → OAuth grants bot scopes (<code>chat:write</code>, <code>reactions:read/write</code>, <code>channels:history</code>, <code>reactions:read</code>) → the <b>@Foody</b> bot user joins the workspace → the app opens a persistent <b>Socket Mode</b> WebSocket with an app-level token (<code>xapp-…</code>, <code>connections:write</code>). <b>No public URL, no inbound port.</b></div>
+  </div>
+
+  <div class="seq">
+    <div class="heads">
+      <div class="h"><div class="chip">🧑‍🤝‍🧑 The team<small>#lunch-crew</small></div></div>
+      <div class="h"><div class="chip">Slack platform<small>Events API · Web API</small></div></div>
+      <div class="h"><div class="chip">🍴 Foody agent<small>Bolt · Socket Mode · your server</small></div></div>
+      <div class="h"><div class="chip">takeaway.com<small>public website</small></div></div>
+    </div>
+    <div class="lifelines">
+      <i style="left:12.5%"></i><i style="left:37.5%"></i><i style="left:62.5%"></i><i style="left:87.5%"></i>
+    </div>
+
+    <div class="rows">
+      <div class="step"><div class="msg r" style="--c:var(--purple);left:12.5%;width:25%"><span class="num">1</span><span class="lab">types <b>“let's eat something”</b></span></div></div>
+      <div class="step"><div class="msg r" style="--c:var(--auber);left:37.5%;width:25%"><span class="num">2</span><span class="lab">event ▸ <b>message.channels</b> → intent.ts match</span></div></div>
+      <div class="step"><div class="msg l" style="--c:var(--blue);left:37.5%;width:25%"><span class="num">3</span><span class="lab">web ▸ <b>chat.postMessage</b> (greeting · addr_&lt;user&gt;)</span></div></div>
+      <div class="step"><div class="msg bi dash" style="--c:var(--amber);left:62.5%;width:25%"><span class="num">4</span><span class="lab"><b>scrape-live.ts</b> ▸ headless Chrome (cache 24h)</span><span class="warnflag">⚠ DOM-sensitive scraping</span></div></div>
+      <div class="step"><div class="msg l" style="--c:var(--blue);left:37.5%;width:25%"><span class="num">5</span><span class="lab">web ▸ <b>chat.postMessage</b> menu + <b>reactions.add</b> ×10</span></div></div>
+      <div class="step"><div class="msg r" style="--c:var(--auber);left:12.5%;width:50%"><span class="num">6</span><span class="lab">emoji tap → event ▸ <b>reaction_added / reaction_removed</b></span></div></div>
+      <div class="step"><div class="msg l" style="--c:var(--blue);left:37.5%;width:25%"><span class="num">7</span><span class="lab">web ▸ <b>reactions.get</b> → reconcile → <b>chat.update</b> cart</span></div></div>
+      <div class="step"><div class="msg r" style="--c:var(--auber);left:12.5%;width:50%"><span class="num">8</span><span class="lab">tap <b>“Order now”</b> → event ▸ <b>block_actions</b></span></div></div>
+      <div class="step"><div class="msg bi dash" style="--c:var(--amber);left:62.5%;width:25%"><span class="num">9</span><span class="lab"><b>checkout.ts</b> ▸ your Chrome via CDP</span><span class="warnflag">⚠ needs your signed-in Chrome · Cloudflare</span></div></div>
+      <div class="step"><div class="msg l" style="--c:var(--green);left:37.5%;width:25%"><span class="num">10</span><span class="lab">web ▸ <b>chat.postMessage</b> receipt (in thread)</span></div></div>
+    </div>
+  </div>
+
+  <div class="foot">
+    <span><span class="barbar"><i style="background:var(--red)"></i><i style="background:var(--yellow)"></i><i style="background:var(--blue)"></i><i style="background:var(--green)"></i></span><b>8 of 10 steps are pure Slack</b> (events in over Socket Mode, Web API out). Only the <span class="amber">amber steps 4 &amp; 9</span> reach takeaway.com — and today they do it through a browser, which is the one fragile part.</span>
+    <span style="margin-left:auto"><b>Foody</b> · Work hard, skip hangry.</span>
+  </div>
+</div>
+</body>
+</html>

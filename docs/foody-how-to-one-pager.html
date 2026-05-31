@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Foody — How to use</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --red:#E23B2E; --green:#2EB67D; --yellow:#ECB22E; --blue:#36C5F0;
+    --bg:#F6F5F1; --surface:#FFFFFF; --ink:#2D2D2D; --ink-soft:#5B5B5B; --line:#E4E2DB;
+    --display:"Poppins","Inter",system-ui,sans-serif;
+    --body:"Inter",-apple-system,"Segoe UI",system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{background:#cfcfca}
+  body{font-family:var(--body);color:var(--ink);-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .page{width:210mm;height:297mm;margin:0 auto;background:var(--bg);position:relative;overflow:hidden;
+    display:flex;flex-direction:column;padding:12mm 13mm 10mm}
+  @page{size:A4;margin:0}
+  .page::before{content:"";position:absolute;top:-55mm;right:-55mm;width:110mm;height:110mm;border-radius:50%;
+    background:radial-gradient(circle at center, rgba(54,197,240,.10), rgba(54,197,240,0) 70%)}
+  .page::after{content:"";position:absolute;bottom:-55mm;left:-55mm;width:105mm;height:105mm;border-radius:50%;
+    background:radial-gradient(circle at center, rgba(46,182,125,.09), rgba(46,182,125,0) 70%)}
+
+  header{display:flex;align-items:center;gap:13px;position:relative;z-index:2}
+  .mark{width:50px;height:50px;flex:0 0 auto}
+  .brand h1{font-family:var(--display);font-weight:800;font-size:30px;letter-spacing:-1px;line-height:1}
+  .brand .tag{font-family:var(--display);font-weight:600;color:var(--ink-soft);font-size:12px;margin-top:3px}
+  .pill{margin-left:auto;background:var(--surface);border:1px solid var(--line);border-radius:999px;
+    padding:8px 15px;font-family:var(--display);font-weight:600;font-size:11.5px;color:var(--ink-soft);
+    box-shadow:0 1px 2px rgba(0,0,0,.05)}
+  .pill b{color:var(--ink)}
+
+  .lead{margin-top:11px;position:relative;z-index:2}
+  .lead .kicker{font-family:var(--display);font-weight:700;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--blue)}
+  .lead h2{font-family:var(--display);font-weight:800;font-size:19px;line-height:1.2;letter-spacing:-.3px;margin-top:4px}
+
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:9px 11px;margin-top:11px;position:relative;z-index:2}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:11px 12px 10px;
+    box-shadow:0 1px 2px rgba(0,0,0,.05),0 4px 10px rgba(0,0,0,.04);display:flex;flex-direction:column}
+  .top{display:flex;align-items:center;gap:9px}
+  .n{width:24px;height:24px;border-radius:999px;display:flex;align-items:center;justify-content:center;
+    font-family:var(--display);font-weight:700;font-size:12px;color:#fff;flex:0 0 auto}
+  .card:nth-child(1) .n{background:var(--red)} .card:nth-child(2) .n{background:var(--yellow)}
+  .card:nth-child(3) .n{background:var(--blue)} .card:nth-child(4) .n{background:var(--green)}
+  .card:nth-child(5) .n{background:var(--ink)} .card:nth-child(6) .n{background:var(--red)}
+  .top h3{font-family:var(--display);font-weight:700;font-size:13.5px;line-height:1.15}
+  .card p{font-size:10.5px;line-height:1.45;color:var(--ink-soft);margin:6px 0 8px}
+  .card p code{font-family:ui-monospace,monospace;font-size:10px;background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:1px 4px;color:var(--ink)}
+  .shot{margin-top:auto;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:#1A1D21}
+  .shot img{display:block;width:100%;height:auto}
+
+  .cta{margin-top:10px;position:relative;z-index:2;background:var(--ink);border-radius:14px;
+    padding:13px 20px;display:flex;align-items:center;gap:16px;color:#fff}
+  .cta .barbar{display:flex;gap:5px;flex:0 0 auto}
+  .cta .barbar i{width:7px;height:26px;border-radius:999px;display:block}
+  .cta h5{font-family:var(--display);font-weight:700;font-size:15px;line-height:1.2}
+  .cta p{font-size:10.5px;color:rgba(255,255,255,.72);margin-top:2px}
+  .cta p b{color:#fff}
+  .cta .go{margin-left:auto;background:var(--green);color:#fff;font-family:var(--display);font-weight:700;
+    font-size:12.5px;padding:10px 18px;border-radius:999px;white-space:nowrap}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header>
+    <img class="mark" src="assets/foody-mark-tile.png" alt="Foody" style="border-radius:12px;object-fit:cover" />
+    <div class="brand">
+      <h1>How to use Foody</h1>
+      <div class="tag">Work hard, skip hangry.</div>
+    </div>
+    <div class="pill">No app to install · lives in <b>Slack</b></div>
+  </header>
+
+  <div class="lead">
+    <div class="kicker">Group food ordering · 6 simple steps</div>
+    <h2>From “let's eat something” to a shared basket — entirely in your channel.</h2>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <div class="top"><span class="n">1</span><h3>Kick it off</h3></div>
+      <p>Type <code>let's eat something</code> in any channel. Foody greets you and remembers your delivery address.</p>
+      <div class="shot"><img src="screenshots/01-greeting.png" alt="Greeting" /></div>
+    </div>
+
+    <div class="card">
+      <div class="top"><span class="n">2</span><h3>Pick a vibe</h3></div>
+      <p>Tap a cuisine category — pizza, kebab, sushi, healthy… or skip straight to the top spots.</p>
+      <div class="shot"><img src="screenshots/02-category.png" alt="Category picker" /></div>
+    </div>
+
+    <div class="card">
+      <div class="top"><span class="n">3</span><h3>Choose a spot</h3></div>
+      <p>The top 3 restaurants near you, scored and ranked. One tap to open the menu.</p>
+      <div class="shot"><img src="screenshots/03-restaurants.png" alt="Top 3 restaurants" /></div>
+    </div>
+
+    <div class="card">
+      <div class="top"><span class="n">4</span><h3>React to add</h3></div>
+      <p>The top 10 dishes land pre-reacted. Tap an emoji to add it to the <b>shared</b> basket — the total updates live for everyone.</p>
+      <div class="shot"><img src="screenshots/04-menu-cart.png" alt="Shared cart" /></div>
+    </div>
+
+    <div class="card">
+      <div class="top"><span class="n">5</span><h3>Order</h3></div>
+      <p>Hit <b>🛒 Order now</b>. Foody builds the basket on takeaway.com with a live progress card.</p>
+      <div class="shot"><img src="screenshots/05-progress.png" alt="Build progress" /></div>
+    </div>
+
+    <div class="card">
+      <div class="top"><span class="n">6</span><h3>Done</h3></div>
+      <p>A clean receipt lands in the thread — items, totals and ETA. Everyone's fed.</p>
+      <div class="shot"><img src="screenshots/06-receipt.png" alt="Receipt" /></div>
+    </div>
+  </div>
+
+  <div class="cta">
+    <div class="barbar"><i style="background:var(--red)"></i><i style="background:var(--yellow)"></i><i style="background:var(--blue)"></i><i style="background:var(--green)"></i></div>
+    <div>
+      <h5>Two handy commands</h5>
+      <p><b>change address to …</b> updates your delivery spot · <b>reset</b> starts the session over</p>
+    </div>
+    <div class="go">/invite @Foody →</div>
+  </div>
+
+</div>
+</body>
+</html>

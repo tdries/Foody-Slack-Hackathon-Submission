@@ -1,6 +1,8 @@
 <div align="center">
 
-# 🍴 Foody
+<img src="docs/assets/foody-mark-tile.png" width="130" alt="Foody logo" />
+
+# Foody
 
 ### *Work hard, skip hangry.*
 
@@ -106,6 +108,20 @@ let's eat  →  intent  →  session state  →  discovery (scrape + cache)  →
 
 There's a one-page visual of this in **[docs/Foody-Technical-One-Pager.pdf](docs/Foody-Technical-One-Pager.pdf)**.
 
+### Request sequence
+
+How one lunch order flows end to end. Foody is an installed Slack agent: it connects over **Socket Mode** (no public URL), so most steps are pure Slack — events in, Web API calls out. Only the takeaway hops differ between today and the future.
+
+**Today** — discovery and checkout go through browser automation (amber steps 4 & 9):
+
+![Foody request sequence — today](docs/diagrams/foody-sequence-today.png)
+
+**With the official Just Eat Takeaway.com API** — the Slack side is identical; the brittle browser steps become a partner API + a status webhook, and it runs fully headless:
+
+![Foody request sequence — with official API](docs/diagrams/foody-sequence-with-api.png)
+
+> Print versions: **[Architecture — Today (PDF)](docs/Foody-Architecture-1-Today.pdf)** · **[Architecture — With official API (PDF)](docs/Foody-Architecture-2-With-API.pdf)**
+
 ---
 
 ## Quick start
@@ -190,6 +206,41 @@ npm run foody -- reset <user>
 ## Tech
 
 `TypeScript` · `Node.js 22` · `@slack/bolt` (Socket Mode) · `Block Kit` · `Puppeteer` + stealth · JSON disk-TTL cache · `tsx`
+
+---
+
+## 🚀 Going forward
+
+**At the moment of writing, we did not have access to the Just Eat Takeaway.com API.** Everything in Foody's runtime is real — but the *food* layer (restaurant discovery and checkout) currently goes through **browser automation**: a stealth headless Chrome scrapes menus, and checkout drives your own signed-in Chrome over the DevTools Protocol to get past Cloudflare. It works, but it's the one fragile, non-cloud part of the system.
+
+**Official API access would streamline this agent significantly.** The Slack side wouldn't change at all — same install, same Socket Mode events, same emoji-reaction interface. Only the takeaway hops (steps 4 & 9 in the [request sequence](#request-sequence)) would become clean API calls, which unlocks:
+
+- 🔁 **Reliable discovery** — structured menus (modifiers, allergens, live availability); no scraping, never breaks on a layout change
+- 💳 **Real orders + payment via API** — no driving a browser, no manual confirm
+- 📦 **Live delivery tracking** pushed back into the Slack thread (accepted → cooking → delivered)
+- ☁️ **Fully headless** — deploy anywhere in the cloud, scale to many workspaces, no user's Chrome
+- 💸 Accurate pricing & promos, address validation, reorder & history, true bill-splitting
+
+> Side by side: **[Architecture — Today](docs/Foody-Architecture-1-Today.pdf)** vs **[Architecture — With the official API](docs/Foody-Architecture-2-With-API.pdf)**.
+
+### 📨 Reach out — let's make this real
+
+<div align="center">
+<br>
+
+<img src="docs/assets/takeaway-logo.png" width="220" alt="Takeaway.com" />
+
+<br><br>
+
+**Are you on the Just Eat Takeaway.com team?**
+
+Foody is built to plug into an official partner API the moment access is available — turning this from a clever hackathon agent into a production-grade ordering experience for **every Slack team**. The hard part (the Slack-native UX) is done; we just need the front door to the menus and baskets.
+
+👉 **Open an issue on this repo**, or reach the maintainer at **tim.dries@biztory.be**
+
+</div>
+
+---
 
 <div align="center">
 <br>
