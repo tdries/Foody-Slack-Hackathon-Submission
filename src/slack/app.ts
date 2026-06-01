@@ -40,7 +40,7 @@ import {
   receiptBlocks,
 } from "./blocks.ts";
 import { categoryById, CATEGORIES } from "../categories.ts";
-import { buildCartOnTakeaway, launchUserChrome, isChromeDebugUp } from "../checkout.ts";
+import { buildCartOnTakeaway, launchUserChrome, isChromeDebugUp, clearSiteBasket, surfaceBasketForPay } from "../checkout.ts";
 import { schedulePrewarm } from "../prewarm.ts";
 
 const { App } = pkg as unknown as { App: new (...args: any[]) => any };
@@ -81,26 +81,32 @@ function startLookupTicker(
   subtitle?: string,
 ): () => void {
   let pct = 5;
-  const render = async () => {
-    try {
-      await client.chat.update({
-        channel,
-        ts,
-        text: title,
-        blocks: lookupBlocks({ title, subtitle, pct }),
+  let stopped = false;
+  // Track the latest in-flight chat.update so stop() can await it. Without this
+  // an already-dispatched "loading" render can land at Slack *after* the caller
+  // renders the final card, overwriting it (the menu got stuck on "5%").
+  let inFlight: Promise<unknown> = Promise.resolve();
+  const render = () => {
+    if (stopped) return;
+    inFlight = client.chat
+      .update({ channel, ts, text: title, blocks: lookupBlocks({ title, subtitle, pct }) })
+      .catch(() => {
+        // Slack rate limit / message deleted — the final render overwrites anyway.
       });
-    } catch {
-      // Slack rate limit / message deleted — silently swallow, the final
-      // success-update will overwrite anyway.
-    }
   };
-  void render();
+  render();
   const interval = setInterval(() => {
     // Asymptotic walk toward 90%.
     pct = Math.min(90, pct + Math.max(3, Math.round((90 - pct) * 0.18)));
-    void render();
+    render();
   }, 1400);
-  return () => clearInterval(interval);
+  // Async stop: no further renders fire (stopped flag) and any in-flight one is
+  // awaited, so the caller's final card can never be clobbered by the ticker.
+  return async () => {
+    stopped = true;
+    clearInterval(interval);
+    await inFlight;
+  };
 }
 
 /**
@@ -294,7 +300,7 @@ async function postRestaurants(
   const stopTicker = startLookupTicker(client, channel, placeholder.ts as string, lookupTitle, `📍 *${state.address}*`);
 
   const restaurants = await findRestaurants(state.address, 3, state.category);
-  stopTicker();
+  await stopTicker();
   // Snapshot the candidates so a pick still resolves if the bot restarts (wiping
   // the in-memory live cache) between showing the list and the user clicking.
   state.candidates = restaurants;
@@ -348,7 +354,7 @@ async function postMenuAndPreReact(
   );
 
   const dishes = await getTopDishes(restaurant.id, 10);
-  stopMenuTicker();
+  await stopMenuTicker();
   if (dishes.length === 0) {
     await client.chat.update({
       channel,
@@ -505,6 +511,13 @@ app.message(async ({ message, client }: any) => {
   const key = sessionKey(channel, threadTs);
   const sess = resetState(key); // fresh session
   sess.initiator = userId;
+
+  // A fresh session starts from a clean slate: empty any leftover takeaway.com
+  // basket so old items can't confuse this order. Best-effort and non-blocking
+  // — no-op unless the debug Chrome is already up (never launches one here).
+  clearSiteBasket()
+    .then((n) => { if (n && n > 0) console.log(`[session] cleared ${n} leftover basket item(s) on new session`); })
+    .catch(() => {});
 
   // Use saved address if we have one. The CLI's `address --set` stores
   // addresses under `addr_<userId>`; the Slack bot mirrors that.
@@ -1044,6 +1057,19 @@ async function deleteBotMessagesInThread(
   } while (cursor);
   return deleted;
 }
+
+app.action("review_and_pay", async ({ ack, body, action, client }: any) => {
+  await ack();
+  const channel: string = body.channel.id;
+  const threadTs: string = body.message.thread_ts ?? body.message.ts;
+  const payUrl: string | undefined = action.value;
+  // Surface the Foody Chrome tab that holds the basket (NOT the default browser,
+  // which is a different, empty profile) so the user pays where the basket is.
+  const res = await surfaceBasketForPay(payUrl);
+  await client.chat
+    .postMessage({ channel, thread_ts: threadTs, text: res.message })
+    .catch(() => {});
+});
 
 app.action("cancel_session", async ({ ack, body, action, client }: any) => {
   await ack();

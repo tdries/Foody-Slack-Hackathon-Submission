@@ -206,6 +206,10 @@ export async function launchUserChrome(
       [
         `--remote-debugging-port=${DEBUG_PORT}`,
         `--user-data-dir=${CHROME_PROFILE_DIR}`,
+        // Run the Foody-controlled Chrome clean: browser extensions (e.g. VeePN)
+        // inject overlays/placeholder text onto the basket page, which both
+        // confuses the user and can break the add-to-cart DOM matching.
+        "--disable-extensions",
         "--no-first-run",
         "--no-default-browser-check",
         "about:blank",
@@ -295,6 +299,12 @@ async function addOneDish(
   takeawayDishName: string,
   takeawayDishId: string | null,
 ): Promise<boolean> {
+  // takeaway.com renders the menu as a VIRTUALIZED list — only the dishes near
+  // the viewport exist in the DOM at any moment (we saw ~9 item rows for a menu
+  // of dozens). Scroll until this dish's row is rendered before matching it,
+  // otherwise the search runs against a DOM that simply doesn't contain it yet.
+  await scrollMenuToDish(page, takeawayDishName);
+
   const result: { kind: "inline" | "row-clicked" | "not-found" } = await page.evaluate(
     ({ name, id }: { name: string; id: string | null }) => {
       // esbuild (via tsx) wraps every named arrow with __name(fn, "..."). That
@@ -508,6 +518,224 @@ async function addOneDish(
 }
 
 /**
+ * Scroll the (virtualized) menu until the row whose exact name matches
+ * `dishName` is rendered, then centre it. Returns true if it became visible.
+ * Best-effort and defensive — scrolling the window materializes lazily-rendered
+ * rows on takeaway.com so the matcher can find dishes below the initial fold.
+ */
+async function scrollMenuToDish(page: any, dishName: string): Promise<boolean> {
+  try {
+    return await page.evaluate(async (rawName: string) => {
+      // @ts-ignore — defuse esbuild's __name helper in the browser context.
+      if (typeof (globalThis as any).__name !== "function") (globalThis as any).__name = (fn: any) => fn;
+      const nfc = (s: string) => s.normalize("NFC").trim().toLowerCase();
+      const want = nfc(rawName);
+      const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+      // Exact-text leaf match (mirrors the matcher's strategy C) so the long
+      // category "preview" strings (which merely list dish names) never count.
+      const findExact = (): HTMLElement | null =>
+        (Array.from(
+          document.querySelectorAll("h1,h2,h3,h4,h5,h6,strong,span,a,p,div"),
+        ) as HTMLElement[]).find((el) => nfc(el.textContent ?? "") === want) ?? null;
+
+      let hit = findExact();
+      if (hit) { hit.scrollIntoView({ block: "center" }); await sleep(250); return true; }
+
+      let lastY = -1;
+      for (let i = 0; i < 45; i++) {
+        window.scrollBy(0, Math.round(window.innerHeight * 0.8));
+        await sleep(220);
+        hit = findExact();
+        if (hit) { hit.scrollIntoView({ block: "center" }); await sleep(250); return true; }
+        if (window.scrollY === lastY) break; // reached the bottom — not present
+        lastY = window.scrollY;
+      }
+      return findExact() != null;
+    }, dishName);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Empty whatever is currently in the takeaway.com basket on `page`.
+ *
+ * Run before building a fresh order so leftovers from a previous Foody session
+ * never mix into (or get confused with) the new one. Best-effort and fully
+ * defensive: it tries a single "empty/clear basket" control, handles the
+ * "start a new order?" confirm that appears when the basket holds items from a
+ * different restaurant, and otherwise removes basket lines one by one. Any
+ * failure is swallowed — a stale basket is better than a broken build.
+ *
+ * Returns the number of remove actions performed (0 = basket was already empty).
+ */
+async function clearBasket(page: any): Promise<number> {
+  let actions = 0;
+  for (let pass = 0; pass < 30; pass++) {
+    const did: string | null = await page
+      .evaluate(() => {
+        const norm = (s: string | null) => (s ?? "").toLowerCase().trim();
+        const all = Array.from(
+          document.querySelectorAll('button, [role="button"], a'),
+        ) as HTMLElement[];
+
+        // 1) A single "empty/clear basket" or "start new order" control.
+        const clearAll = all.find((b) => {
+          const t = norm(b.textContent) + " " + norm(b.getAttribute("aria-label"));
+          return (
+            /(empty|clear)\s+(your\s+)?(basket|cart|order)/.test(t) ||
+            /leeg(maken)?\s*(je\s*)?(winkelmand|mand|basket)/.test(t) ||
+            /maak\s+(de\s+)?(winkelmand|mand)\s+leeg/.test(t) ||
+            /start\s+(a\s+)?new\s+(order|basket)/.test(t) ||
+            /nieuwe?\s+(bestelling|mand)/.test(t)
+          );
+        });
+        if (clearAll) {
+          (clearAll as HTMLButtonElement).click();
+          return "clear-all";
+        }
+
+        // 2) Otherwise decrement/remove a single basket line. Scope to the
+        // basket/side-cart so we never touch menu "+/-" steppers.
+        const scope =
+          (document.querySelector(
+            '[data-qa*="basket" i], [data-qa*="cart" i], [class*="basket" i], [class*="sidecart" i], [class*="side-cart" i], aside',
+          ) as HTMLElement | null) ?? document.body;
+        const ctrls = Array.from(
+          scope.querySelectorAll('button, [role="button"]'),
+        ) as HTMLElement[];
+        const rm = ctrls.find((b) => {
+          const t = norm(b.textContent);
+          const a =
+            norm(b.getAttribute("aria-label")) + " " + norm(b.getAttribute("data-qa"));
+          return (
+            /^(-|−|–|×|x|remove|delete|verwijder)$/.test(t) ||
+            /\b(remove|delete|decrement|verwijder|verlaag|minder)\b/.test(a)
+          );
+        });
+        if (rm) {
+          (rm as HTMLButtonElement).click();
+          return "remove-one";
+        }
+        return null;
+      })
+      .catch(() => null);
+
+    if (!did) break;
+    actions++;
+    await new Promise((r) => setTimeout(r, 450));
+  }
+  return actions;
+}
+
+/**
+ * Best-effort: empty the user's takeaway.com basket WITHOUT a restaurant
+ * context — used when a fresh Foody session starts so stale items don't linger.
+ * No-op (returns null) unless the debug Chrome is already up, so it never
+ * launches a browser or blocks the Slack trigger. Runs in a background tab.
+ */
+export async function clearSiteBasket(): Promise<number | null> {
+  if (!(await isChromeDebugUp())) return null;
+  const launched = await connectToUserChrome();
+  if (launched.missing) return null;
+  const { browser, page } = launched as { browser: any; page: any };
+  try {
+    await page.goto(TAKEAWAY_HOME, { waitUntil: "networkidle2", timeout: 45_000 });
+    await dismissCookies(page);
+    await new Promise((r) => setTimeout(r, 1200));
+    return await clearBasket(page);
+  } catch {
+    return null;
+  } finally {
+    try { await page.close(); } catch {}
+    try { browser.disconnect(); } catch {}
+  }
+}
+
+/**
+ * Best-effort: raise the macOS Chrome window whose active tab is on
+ * takeaway.com (the basket window) to the foreground. `page.bringToFront()`
+ * only re-orders tabs inside the browser process; it does not pull the OS
+ * window forward when another app (Slack) is active. AppleScript does.
+ */
+function raiseTakeawayWindow(): void {
+  if (process.platform !== "darwin") return;
+  const osa = [
+    'tell application "Google Chrome"',
+    "  activate",
+    "  repeat with w in windows",
+    "    try",
+    '      if (URL of active tab of w) contains "takeaway" then',
+    "        set index of w to 1",
+    "        exit repeat",
+    "      end if",
+    "    end try",
+    "  end repeat",
+    "end tell",
+  ].join("\n");
+  try {
+    spawn("osascript", ["-e", osa], { stdio: "ignore", detached: true }).unref();
+  } catch {
+    /* best-effort only */
+  }
+}
+
+/**
+ * Bring the Foody Chrome tab that holds the freshly-built basket to the front,
+ * so the user reviews & pays in the SAME profile the basket was built in.
+ *
+ * This is why "Review & pay" is a Slack action, not a url button: a url button
+ * opens Slack's *default* browser, which is a different Chrome profile with its
+ * own (empty) takeaway.com session. The basket lives only in `~/.foody-chrome`.
+ */
+export async function surfaceBasketForPay(
+  payUrl?: string,
+): Promise<{ ok: boolean; message: string }> {
+  if (!(await isChromeDebugUp())) {
+    return {
+      ok: false,
+      message:
+        "The Foody Chrome window isn't running anymore, so the basket is gone. Re-run the order to rebuild it.",
+    };
+  }
+  try {
+    const browser = await puppeteer.connect({
+      browserURL: `http://${DEBUG_HOST}:${DEBUG_PORT}`,
+      defaultViewport: null,
+    });
+    try {
+      const pages = await browser.pages();
+      let page =
+        pages.find((p: any) => /takeaway\.com/.test(p.url())) ??
+        (payUrl ? pages.find((p: any) => p.url() === payUrl) : undefined) ??
+        null;
+      if (!page) {
+        page = await browser.newPage();
+        if (payUrl)
+          await page
+            .goto(payUrl, { waitUntil: "domcontentloaded", timeout: 30_000 })
+            .catch(() => {});
+      }
+      await page.bringToFront().catch(() => {});
+      raiseTakeawayWindow();
+      return {
+        ok: true,
+        message:
+          "🪟 Brought the *Foody Chrome* window (the one with your items) to the front — review & pay there. If you don't see it, switch Chrome windows with ⌘\\` — your default browser has a separate, empty basket.",
+      };
+    } finally {
+      browser.disconnect();
+    }
+  } catch {
+    return {
+      ok: false,
+      message:
+        "Couldn't reach the Foody Chrome window. Switch to the Chrome window showing the restaurant menu to review & pay.",
+    };
+  }
+}
+
+/**
  * Build the cart on takeaway.com for a real restaurant. Repeats per quantity.
  */
 export async function buildCartOnTakeaway(
@@ -560,6 +788,12 @@ export async function buildCartOnTakeaway(
 
     await dumpHeadlessSnapshot(page, "menu-loaded");
 
+    // Start from an empty basket: clear any leftovers from a previous session
+    // so the order we place is exactly this session's picks, nothing extra.
+    await notify({ stage: "navigating", note: "Clearing any leftover basket" });
+    const cleared = await clearBasket(page);
+    if (cleared > 0) await notify({ stage: "navigating", note: `Removed ${cleared} leftover item(s)` });
+
     const added: string[] = [];
     const failed: string[] = [];
 
@@ -599,6 +833,10 @@ export async function buildCartOnTakeaway(
 
     const url = page.url();
     if (failed.length === 0) {
+      // Surface the basket tab so the user sees it in the Foody Chrome window
+      // (not their default browser) the moment the build finishes.
+      await page.bringToFront().catch(() => {});
+      raiseTakeawayWindow();
       await notify({ stage: "done" });
     } else {
       await notify({ stage: "failed", reason: `Built ${added.length} of ${state.cart.length}` });

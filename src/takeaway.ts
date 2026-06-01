@@ -1,6 +1,7 @@
 import { readFileSync, existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { emojiPrefsFor } from "./emojis.ts";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = join(__dirname, "..", "data");
@@ -94,6 +95,12 @@ function loadData(): DataFile {
   const manifest = loadManifest();
   const uploaded = loadUploaded();
   for (const d of merged.dishes) {
+    // Static mock/real dishes ship with only a single `slackEmoji`; derive the
+    // rich, dish-specific preference list (same logic the live scraper uses) so
+    // demo mode renders meaningful, distinct emojis instead of numbered badges.
+    if (!d.slackEmojiPrefs || d.slackEmojiPrefs.length === 0) {
+      d.slackEmojiPrefs = emojiPrefsFor(d.category ?? null, d.name);
+    }
     const entry = manifest[d.id];
     if (entry && uploaded[entry.slug]) d.customEmoji = `foody_${entry.slug}`;
   }

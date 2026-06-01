@@ -517,10 +517,15 @@ export function progressCardBlocks(opts: {
         type: "actions",
         elements: [
           {
+            // NOT a url button — a url button opens Slack's *default* browser,
+            // a different Chrome profile than the one Foody built the basket in
+            // (empty there). This action surfaces the Foody Chrome tab that
+            // actually holds the basket.
             type: "button",
             style: "primary",
             text: { type: "plain_text", text: "💳  Review & pay", emoji: true },
-            url: payUrl,
+            action_id: "review_and_pay",
+            value: payUrl,
           },
         ],
       });
