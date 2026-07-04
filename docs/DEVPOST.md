@@ -36,7 +36,7 @@ The entire experience is the chat itself: messages, cards, buttons, and reaction
 
 ## How we built it
 
-Foody is a small, **deterministic** TypeScript app that runs **headless** behind your firewall — a background worker with no public URL and no frontend. There is deliberately **no LLM in the request path**, so a given input always does exactly the same thing: fast, predictable, debuggable.
+Foody is a small TypeScript app that runs **headless** behind your firewall — a background worker with no public URL and no frontend. It uses **Slack's AI capabilities** as its front door: a full **AI-app assistant surface** (assistant threads, live status updates, suggested prompts) where **Claude with tool use** plans the order in natural language — compare restaurants, fit a budget, pick photo or compact menus. When you say go, the assistant's `start_group_order` tool hands off to a deliberately **deterministic** channel flow (phrase matchers, emoji reactions, reconciliation), so the shared basket itself always behaves exactly the same way: fast, predictable, debuggable.
 
 | Layer | Responsibility |
 |---|---|
@@ -51,7 +51,7 @@ Three design decisions we're proud of:
 
 - **🛰️ Headless and private, with no public URL.** Foody talks to Slack over an **outbound WebSocket (Socket Mode)**, so it runs as a background worker behind your firewall — nothing inbound, nothing leaving the workspace. The agent never needs a UI of its own, because Slack is the UI.
 - **🩹 Reactions are the source of truth.** The basket is reconciled from the *actual* emoji reactions on the menu message — not a running tally of events. Any single interaction re-derives the entire cart from ground truth, so it stays perfectly in sync with what the team can see and **self-heals** by construction.
-- **⚙️ Deterministic by design.** Intent is a short list of phrase matchers, not a model. Every input maps to exactly one outcome, which keeps the agent quick to reason about and easy to trust.
+- **🤖 Slack AI capabilities, used for real.** The assistant pane (assistant threads + live status + suggested prompts) is the planning brain — Claude with tools. The order flow it hands off to stays deterministic: every reaction maps to exactly one outcome, which keeps the shared basket easy to trust.
 
 The food layer is deliberately **swappable**: today Foody discovers menus through a **headless browser** and assembles the basket in your signed-in session, all behind a clean interface — so the exact same Slack experience can sit on top of an official partner API with zero changes above it (see *What's next*).
 

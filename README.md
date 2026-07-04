@@ -16,7 +16,8 @@ Someone in your channel types **“let's eat something.”** Foody picks up, run
 ![Node.js](https://img.shields.io/badge/Node.js-22-339933?logo=node.js&logoColor=white)
 ![Slack Bolt](https://img.shields.io/badge/Slack-Bolt%20·%20Socket%20Mode-4A154B?logo=slack&logoColor=white)
 ![Puppeteer](https://img.shields.io/badge/Puppeteer-stealth-40B5A4?logo=puppeteer&logoColor=white)
-![No LLM](https://img.shields.io/badge/runtime-deterministic%20·%20no%20LLM-2EB67D)
+![Slack AI](https://img.shields.io/badge/Slack%20AI-assistant%20·%20Claude-4A154B?logo=slack&logoColor=white)
+![Deterministic core](https://img.shields.io/badge/order%20flow-deterministic-2EB67D)
 
 <br>
 
@@ -82,11 +83,33 @@ A clean receipt lands in the thread: items, totals, and an ETA.
 
 ---
 
+## 🤖 The AI assistant — built on Slack AI capabilities
+
+Foody is a **Slack AI app**: it lives in the ✨ AI-apps split pane with a full assistant surface — **assistant threads, live status updates ("is scanning takeaway.com…"), and suggested prompts** — powered by Claude with tool use.
+
+Open Foody from the AI-apps pane (or DM it) and just talk:
+
+> *"Something spicy for 6 people under €15, we're at Veldstraat 1, 9000 Gent"*
+> *"What are the top pizza spots near the office, and what does the best one charge for a margherita?"*
+> *"Start a photo order for burgers in #foody-demo"*
+
+The assistant compares restaurants, answers budget and menu questions, and remembers your delivery address. When you say go, it calls its `start_group_order` tool: the restaurant cards (or the menu, photos and all) land in the channel, and the classic emoji-reaction group flow takes over — **AI plans the order, the whole team fills the basket.**
+
+| Slack AI capability | Where Foody uses it |
+|---|---|
+| Assistant surface (split pane) | The whole conversational ordering experience |
+| Assistant threads & context | Multi-turn planning; knows which channel you came from |
+| Live status | "is scanning takeaway.com…" while tools run |
+| Suggested prompts | One-tap starters like *🍕 Feed the team* |
+| Tool use (Claude) | `start_group_order`, restaurant search, address book |
+
+---
+
 ## What makes it different
 
 - **🪄 The interface is just emoji.** No forms, no webview — group ordering is reactions on a message.
 - **🧭 Reactions are the source of truth.** The basket is reconciled from the *actual* reactions on the menu message, not a running tally of events — so a dropped Slack event never desyncs the cart. It self-heals.
-- **⚙️ Deterministic, not a chatbot.** No LLM in the runtime path. The intent layer is a list of phrase matchers, so a given input always does exactly the same thing — fast and predictable.
+- **🧠 AI where it helps, deterministic where it counts.** The assistant pane is Claude with tools — plan, compare, negotiate budgets in natural language. The moment an order starts, the flow is fully deterministic: phrase matchers, reactions, reconciliation. Same input, same result, no surprises mid-lunch.
 - **🔌 Private by default.** Runs over Socket Mode — an outbound WebSocket, no public URL, nothing leaving the workspace.
 - **🛒 A real checkout (opt-in).** Beyond the mock flow, Foody can drive an actual takeaway.com basket in *your* signed-in Chrome, ready to confirm.
 
@@ -100,6 +123,7 @@ Foody is a small TypeScript app. Each layer owns one thing:
 |---|---|
 | [`src/slack/app.ts`](src/slack/app.ts) | Bolt + Socket Mode app. Message triggers, action buttons, reaction events, every Block Kit post & update. |
 | [`src/slack/blocks.ts`](src/slack/blocks.ts) | Block Kit builders: restaurant cards, the unified menu+cart card, the animated build-progress card, the receipt. |
+| [`src/slack/assistant.ts`](src/slack/assistant.ts) | The Slack AI assistant: assistant threads, live status, suggested prompts, Claude tool-use, and the `start_group_order` bridge into the channel flow. |
 | [`src/slack/intent.ts`](src/slack/intent.ts) | Phrase matchers for *“let's eat”*, *“order now”*, *“reset”*, *“change address to …”*. A list, not a model. |
 | [`src/state.ts`](src/state.ts) | JSON state, keyed two ways: `addr_<user>` for the sticky address book, `sess_<channel>_<thread>` for the live cart. |
 | [`src/takeaway.ts`](src/takeaway.ts) + [`src/scrape-live.ts`](src/scrape-live.ts) | Restaurant/dish lookup with an in-memory + 24-hour disk-TTL cache and a daily background prewarm. |
@@ -107,6 +131,8 @@ Foody is a small TypeScript app. Each layer owns one thing:
 | [`src/emojis.ts`](src/emojis.ts) | The dish-emoji pool and the Unicode ↔ Slack-shortcode mapping. |
 
 ```
+✨ AI assistant (Claude + tools) ─ start_group_order ─┐
+                                                      ▼
 let's eat  →  intent  →  session state  →  discovery (scrape + cache)  →  pre-reacted menu
                                                                               │
                                               react / un-react  ───────────────┘
@@ -140,6 +166,7 @@ How one lunch order flows end to end. Foody is an installed Slack agent: it conn
 npm install
 cp .env.example .env
 # fill in SLACK_BOT_TOKEN, SLACK_APP_TOKEN, SLACK_SIGNING_SECRET
+# + ANTHROPIC_API_KEY for the AI assistant pane
 npm run dev:slack
 ```
 
@@ -215,7 +242,7 @@ npm run foody -- reset <user>
 
 ## Tech
 
-`TypeScript` · `Node.js 22` · `@slack/bolt` (Socket Mode) · `Block Kit` · `Puppeteer` + stealth · JSON disk-TTL cache · `tsx`
+`TypeScript` · `Node.js 22` · `@slack/bolt` (Socket Mode) · `Slack AI assistant surface` · `Claude (tool use)` · `Block Kit` · `Puppeteer` + stealth · JSON disk-TTL cache · `tsx`
 
 ---
 
