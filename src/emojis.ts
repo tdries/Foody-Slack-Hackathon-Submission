@@ -128,7 +128,7 @@ const UNICODE_TO_SLACK: Record<string, string> = Object.fromEntries(
   Object.entries(SLACK_TO_UNICODE).map(([slack, unicode]) => [unicode, slack]),
 );
 
-/** Numbered emojis used when two dishes in the same top-10 want the same shortcode. */
+/** Numbered badges — no longer assigned (the generic food pool always wins); kept as the test fixture asserting exactly that. */
 export const FALLBACK_EMOJIS: EmojiPair[] = [
   { slack: "one", unicode: "1️⃣" },
   { slack: "two", unicode: "2️⃣" },
@@ -180,7 +180,6 @@ export type DishEmojiHint = {
 export function assignUniqueEmojis(hints: DishEmojiHint[]): EmojiPair[] {
   const used = new Set<string>();
   const out: EmojiPair[] = [];
-  let fallbackIdx = 0;
 
   for (const h of hints) {
     if (h.customSlack && !used.has(h.customSlack)) {
@@ -201,19 +200,12 @@ export function assignUniqueEmojis(hints: DishEmojiHint[]): EmojiPair[] {
       out.push(assigned);
       continue;
     }
-    // Never numbers if any food emoji is free — walk the neutral pool, then
-    // the entire table. Numbered badges survive only as a theoretical last
-    // resort (a menu bigger than the whole emoji table).
+    // Never numbers: walk the neutral pool, then the entire table. Only a menu
+    // bigger than the whole emoji table could exhaust this — placeholder then.
     const generic = GENERIC_FOOD_POOL.find((s) => !used.has(s) && SLACK_TO_UNICODE[s]);
-    if (generic) {
-      used.add(generic);
-      out.push({ unicode: SLACK_TO_UNICODE[generic], slack: generic });
-      continue;
-    }
-    while (fallbackIdx < FALLBACK_EMOJIS.length && used.has(FALLBACK_EMOJIS[fallbackIdx].slack)) {
-      fallbackIdx++;
-    }
-    const fb = FALLBACK_EMOJIS[fallbackIdx] ?? { slack: `none_${out.length}`, unicode: `#${out.length + 1}` };
+    const fb = generic
+      ? { unicode: SLACK_TO_UNICODE[generic], slack: generic }
+      : { slack: `none_${out.length}`, unicode: `#${out.length + 1}` };
     used.add(fb.slack);
     out.push(fb);
   }

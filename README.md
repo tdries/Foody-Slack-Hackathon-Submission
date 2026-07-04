@@ -21,7 +21,8 @@ Someone in your channel types **“let's eat something.”** Foody picks up, run
 
 <br>
 
-### 👉 Try it live: **[join the demo Slack](https://join.slack.com/t/veritype-demo/shared_invite/zt-3z90xcqzk-H~q5ZZUV9eHT5fetkAse4A)**, open `#foody-demo`, and type *“let's eat something.”*  ·  full guide in **[DEMO.md](DEMO.md)**
+### 👉 See it live: Foody runs in the **[Foody developer sandbox](https://app.slack.com/client/E0BA2TY9PRR)** — open `#foody-demo` and type *“let's eat something”*, or ask the ✨ assistant.
+*Judges (`slackhack@salesforce.com` · `testing@devpost.com`) have collaborator invites; sandboxes are invite-only, so everyone else: [watch the demo](https://www.youtube.com/watch?v=TJ0aVqwF8wQ) or email the maintainer for a seat.*  ·  full guide in **[DEMO.md](DEMO.md)**
 
 <br>
 

@@ -5,7 +5,9 @@
  *
  *   cd Foody && FOODY_DISABLE_LIVE=1 npx tsx scripts/smoke-assistant.mts
  */
-import "dotenv/config";
+import { parseEnv } from "node:util";
+import { readFileSync as _envRead } from "node:fs";
+try { Object.assign(process.env, parseEnv(_envRead(".env", "utf-8"))); } catch {}
 import { runAssistantTurn } from "../src/slack/assistant.ts";
 
 const calls: string[] = [];

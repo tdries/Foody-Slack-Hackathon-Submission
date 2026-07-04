@@ -1,7 +1,7 @@
-import dotenv from "dotenv";
 import { readdirSync, readFileSync } from "node:fs";
-// override=true: this project's .env wins over anything already in the shell.
-dotenv.config({ override: true });
+import { parseEnv } from "node:util";
+// Object.assign semantics: this project's .env wins over anything already in the shell.
+try { Object.assign(process.env, parseEnv(readFileSync(".env", "utf-8"))); } catch { /* no .env — rely on the shell env */ }
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import pkg from "@slack/bolt";
@@ -21,9 +21,8 @@ import {
   getTopDishes,
   getDish,
   primeRestaurant,
+  dishesToMenu,
 } from "../takeaway.ts";
-import { assignUniqueEmojis } from "../emojis.ts";
-import { emojiPrefsFor } from "../scrape-live.ts";
 import {
   isFoodyTrigger,
   isOrderConfirm,
@@ -394,24 +393,7 @@ async function postMenuAndPreReact(
     }).catch(() => {});
     return;
   }
-  const emojis = assignUniqueEmojis(
-    // Prefs are recomputed at render time — cached menus bake in whatever the
-    // matcher knew at scrape time, and would pin old/bad picks for 24h.
-    dishes.map((d) => ({
-      customSlack: d.customEmoji,
-      thematicPrefs: [...emojiPrefsFor(d.category ?? null, d.name), ...(d.slackEmojiPrefs ?? [])],
-    })),
-  );
-  const menu: MenuItem[] = dishes.map((d, i) => ({
-    emoji: emojis[i],
-    takeawayDishName: d.takeawayDishName,
-    takeawayDishId: d.takeawayDishId,
-    dishId: d.id,
-    name: d.name,
-    price: d.price,
-    description: d.description,
-    imageUrl: d.imageUrl,
-  }));
+  const menu: MenuItem[] = dishesToMenu(dishes);
 
   state.menu = menu;
   state.activeRestaurantName = restaurant.name;

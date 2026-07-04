@@ -1,7 +1,9 @@
 import { readFileSync, existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { emojiPrefsFor } from "./emojis.ts";
+import { assignUniqueEmojis, emojiPrefsFor } from "./emojis.ts";
+import type { MenuItem } from "./state.ts";
+
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = join(__dirname, "..", "data");
@@ -114,6 +116,28 @@ function loadData(): DataFile {
 
   cache = merged;
   return cache;
+}
+
+
+/** Build the rendered menu from dishes: emoji assignment happens at render
+ * time (cached prefs go stale) and identically for the Slack app and the CLI. */
+export function dishesToMenu(dishes: Dish[]): MenuItem[] {
+  const emojis = assignUniqueEmojis(
+    dishes.map((d) => ({
+      customSlack: d.customEmoji,
+      thematicPrefs: [...emojiPrefsFor(d.category ?? null, d.name), ...(d.slackEmojiPrefs ?? [])],
+    })),
+  );
+  return dishes.map((d, i) => ({
+    emoji: emojis[i],
+    takeawayDishName: d.takeawayDishName,
+    takeawayDishId: d.takeawayDishId,
+    dishId: d.id,
+    name: d.name,
+    price: d.price,
+    description: d.description,
+    imageUrl: d.imageUrl,
+  }));
 }
 
 function postcodeFromAddress(address: string): string | null {

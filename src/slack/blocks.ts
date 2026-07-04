@@ -251,37 +251,6 @@ export function menuCartBlocks(state: FoodyState, sessionKey: string): Block[] {
   return blocks;
 }
 
-/** @deprecated kept for the loading placeholder; menuCartBlocks supersedes it for live cart UX. */
-export function menuBlocks(
-  restaurantName: string,
-  menu: MenuItem[],
-  _sessionKey: string,
-): Block[] {
-  const blocks: Block[] = [
-    {
-      type: "header",
-      text: { type: "plain_text", text: restaurantName, emoji: true },
-    },
-    {
-      type: "context",
-      elements: [
-        {
-          type: "mrkdwn",
-          text: "_Tap the emoji reaction under a dish to add it._",
-        },
-      ],
-    },
-    { type: "divider" },
-  ];
-  for (const m of menu) {
-    blocks.push({
-      type: "section",
-      text: { type: "mrkdwn", text: `\`0×\`   ${m.emoji.unicode}   ${m.name}   —   ${eur(m.price)}` },
-    });
-  }
-  return blocks;
-}
-
 /* Receipt typography — used by cart + progress cards. The Slack code block
  * renders sans-serif on mobile but monospace on desktop; either way, padding
  * to a fixed column width keeps the prices flush on the right. */

@@ -6,16 +6,16 @@
 
 </div>
 
-Foody lives **inside Slack**, so "playing with it" means hopping into the demo workspace where Foody is running and typing one phrase.
+Foody lives **inside Slack**, so "playing with it" means hopping into the **Foody developer sandbox** (a Slack Developer Program workspace, per the hackathon rules) where Foody is running, and typing one phrase.
 
-**👉 Join here:** <https://join.slack.com/t/veritype-demo/shared_invite/zt-3z90xcqzk-H~q5ZZUV9eHT5fetkAse4A> — then open **`#foody-demo`** and type *“let's eat something.”*
+**👉 The workspace:** <https://app.slack.com/client/E0BA2TY9PRR> — open **`#foody-demo`** and type *“let's eat something”*, or ask the **✨ AI assistant**. Developer sandboxes are invite-by-email (no public join links): judges are pre-invited, everyone else can request a seat from the maintainer (see README).
 
 ---
 
 ## 👩‍⚖️ For judges — the fastest path
 
-> 1. **Join the demo workspace:** **<https://join.slack.com/t/veritype-demo/shared_invite/zt-3z90xcqzk-H~q5ZZUV9eHT5fetkAse4A>**
-> 2. Open the **`#foody-demo`** channel.
+> 1. **Accept the sandbox invite** (sent to `slackhack@salesforce.com` / `testing@devpost.com`), then open **<https://app.slack.com/client/E0BA2TY9PRR>**.
+> 2. Open the **`#foody-demo`** channel — or the ✨ **Foody assistant** in the AI-apps pane and try *“start a photo order for pizza”*.
 > 3. Type: **`let's eat something`**
 > 4. Pick a cuisine → pick a restaurant → **tap the emoji reactions** under the dishes to build a shared basket → hit **🛒 Order now**.
 
@@ -63,9 +63,9 @@ cp .env.example .env   # fill in the three SLACK_* secrets
 npm run start:demo     # mock mode, no Chrome needed
 ```
 
-### 3. Open it up to judges
+### 3. Open it up to your testers
 - Create a `#foody-demo` channel and `/invite @Foody`.
-- Generate a Slack **invite link** (workspace **Admin → Invite People → Create invite link**) and paste it at the top of this file.
-- Anyone who joins can immediately type `let's eat something`.
+- In a **developer sandbox**, invite testers by email (Developer Program dashboard → your sandbox → *Invite collaborators*; seats are limited). In a regular workspace, a shareable invite link works too (**Admin → Invite People**).
+- Anyone who joins can immediately type `let's eat something` — or open the ✨ assistant.
 
-> 💡 Keep the demo workspace separate from any real workspace, and rotate/revoke the invite link after judging.
+> 💡 Keep the demo workspace separate from any real workspace, and remove guest seats after judging.

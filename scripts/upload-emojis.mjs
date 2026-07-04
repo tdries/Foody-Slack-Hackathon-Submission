@@ -28,7 +28,9 @@
  *
  * Run: node scripts/upload-emojis.mjs
  */
-import "dotenv/config";
+import { parseEnv } from "node:util";
+import { readFileSync as _envRead } from "node:fs";
+try { Object.assign(process.env, parseEnv(_envRead(".env", "utf-8"))); } catch {}
 import { readFileSync, writeFileSync, readdirSync, existsSync } from "node:fs";
 import { dirname, join, basename } from "node:path";
 import { fileURLToPath } from "node:url";

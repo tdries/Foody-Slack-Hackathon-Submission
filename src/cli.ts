@@ -1,10 +1,9 @@
 #!/usr/bin/env tsx
 /**
- * foody CLI — the data + state layer that backs the Foody WhatsApp skill.
+ * foody CLI — drive Foody's data + state layer by hand (debugging without Slack).
  *
- * All commands emit a single JSON object on stdout. The skill parses that JSON
- * and re-renders it as a WhatsApp-friendly message. Keeping presentation out of
- * the CLI lets the skill iterate on tone/format without touching code.
+ * All commands emit a single JSON object on stdout — easy to pipe into jq
+ * while poking at sessions, carts, and orders without a Slack workspace.
  */
 import {
   loadState,
@@ -18,9 +17,8 @@ import {
   getRestaurant,
   getTopDishes,
   getDish,
+  dishesToMenu,
 } from "./takeaway.ts";
-import { assignUniqueEmojis } from "./emojis.ts";
-import { emojiPrefsFor } from "./scrape-live.ts";
 
 function matchMenuEmoji(input: string, menu: { emoji: { unicode: string } }[]): { unicode: string } | null {
   const target = input.replace(/️/g, "").trim();
@@ -150,21 +148,7 @@ async function cmdMenu(args: Args) {
   if (!restaurant) return emit({ ok: false, error: "restaurant_not_found" });
 
   const dishes = await getTopDishes(restaurant.id, 10);
-  const emojis = assignUniqueEmojis(
-    dishes.map((d) => ({
-      customSlack: d.customEmoji,
-      thematicPrefs: [...emojiPrefsFor(d.category ?? null, d.name), ...(d.slackEmojiPrefs ?? [])],
-    })),
-  );
-  const menu: MenuItem[] = dishes.map((d, i) => ({
-    emoji: emojis[i],
-    takeawayDishName: d.takeawayDishName,
-    dishId: d.id,
-    name: d.name,
-    price: d.price,
-    description: d.description,
-    imageUrl: d.imageUrl,
-  }));
+  const menu: MenuItem[] = dishesToMenu(dishes);
 
   // Setting an active restaurant resets the cart — switching restaurants
   // should not silently carry dishes from the previous one.
