@@ -59,6 +59,16 @@ export function restaurantsBlocks(
     { type: "divider" },
   ];
 
+  // No takeawayUrl on any result = the static demo dataset, i.e. the live
+  // scrape failed (or live mode is off) and we silently fell back. Say so —
+  // convincing-but-fake results mislead more than an honest label.
+  if (restaurants.length > 0 && restaurants.every((r) => !r.takeawayUrl)) {
+    blocks.push({
+      type: "context",
+      elements: [{ type: "mrkdwn", text: "⚠️ _Showing demo data — takeaway.com was unreachable._" }],
+    });
+  }
+
   restaurants.forEach((r, idx) => {
     blocks.push({
       type: "section",
@@ -107,6 +117,13 @@ export function menuCartBlocks(state: FoodyState, sessionKey: string): Block[] {
     { type: "divider" },
   ];
 
+  if (state.activeRestaurant && !state.activeRestaurant.takeawayUrl) {
+    blocks.push({
+      type: "context",
+      elements: [{ type: "mrkdwn", text: "⚠️ _Showing demo data — takeaway.com was unreachable._" }],
+    });
+  }
+
   // Render up to 10 dishes in a 2-column ranked grid. Slack section.fields
   // reads left-to-right, top-to-bottom, so we interleave the halves to get:
   //   col 1 (ranks 1-5)  |  col 2 (ranks 6-10)
@@ -118,7 +135,36 @@ export function menuCartBlocks(state: FoodyState, sessionKey: string): Block[] {
     return { type: "mrkdwn", text };
   };
 
-  if (menu.length > 0) {
+  const hasPhotos = menu.some((m) => m.imageUrl);
+  if (state.menuView === "photos" && !hasPhotos && menu.length > 0) {
+    blocks.push({
+      type: "context",
+      elements: [
+        {
+          type: "mrkdwn",
+          text: "📷 _No food images available for this restaurant — showing the compact menu._",
+        },
+      ],
+    });
+  }
+  if (state.menuView === "photos" && hasPhotos && menu.length > 0) {
+    // Photo view: one section per dish with the dish photo as a right-hand
+    // thumbnail accessory. Same message, same reactions — display only.
+    for (const m of menu) {
+      const qty = qtyByDish.get(m.dishId) ?? 0;
+      const line = qty > 0
+        ? `*${qty}×*  ${m.emoji.unicode}  *${m.name}*  ·  *${eur(m.price * qty)}*`
+        : `${m.emoji.unicode}  *${m.name}*  ·  ${eur(m.price)}`;
+      const block: any = {
+        type: "section",
+        text: { type: "mrkdwn", text: m.description ? `${line}\n_${m.description}_` : line },
+      };
+      if (m.imageUrl) {
+        block.accessory = { type: "image", image_url: m.imageUrl, alt_text: m.name };
+      }
+      blocks.push(block);
+    }
+  } else if (menu.length > 0) {
     const half = Math.ceil(menu.length / 2);
     const left = menu.slice(0, half);
     const right = menu.slice(half);
@@ -176,6 +222,20 @@ export function menuCartBlocks(state: FoodyState, sessionKey: string): Block[] {
       style: "primary",
       text: { type: "plain_text", text: "🛒  Order now", emoji: true },
       action_id: "place_order",
+      value: sessionKey,
+    });
+  }
+  // Only offer photo view when at least one dish actually has a photo
+  // (mock/stale-cached menus don't) — a toggle to an identical view is noise.
+  if (menu.some((m) => m.imageUrl)) {
+    actionElements.push({
+      type: "button",
+      text: {
+        type: "plain_text",
+        text: state.menuView === "photos" ? "📋  Compact view" : "🍽️  Photo view",
+        emoji: true,
+      },
+      action_id: "toggle_menu_view",
       value: sessionKey,
     });
   }

@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#FFA62E"/>
+      <stop offset="1" stop-color="#FF3D2E"/>
+    </linearGradient>
+  </defs>
+
+  <!-- background: full-bleed square, Slack rounds the corners itself -->
+  <rect width="1024" height="1024" fill="url(#bg)"/>
+
+  <!-- chat bubble -->
+  <g fill="#FFFFFF">
+    <rect x="176" y="212" width="672" height="500" rx="112"/>
+    <path d="M 300 690 L 300 838 C 300 858 322 862 335 847 L 460 706 Z"/>
+  </g>
+
+  <!-- burger cut out of the bubble (filled with the bg gradient) -->
+  <g fill="url(#bg)">
+    <!-- top bun -->
+    <path d="M 342 478 C 342 388 418 340 512 340 C 606 340 682 388 682 478 L 682 490
+             Q 682 506 666 506 L 358 506 Q 342 506 342 490 Z"/>
+    <!-- patty -->
+    <rect x="342" y="528" width="340" height="46" rx="23"/>
+    <!-- bottom bun -->
+    <rect x="342" y="596" width="340" height="54" rx="27"/>
+  </g>
+
+  <!-- sesame seeds -->
+  <g fill="#FFFFFF">
+    <ellipse cx="437" cy="420" rx="15" ry="10" transform="rotate(-18 437 420)"/>
+    <ellipse cx="512" cy="398" rx="15" ry="10"/>
+    <ellipse cx="587" cy="420" rx="15" ry="10" transform="rotate(18 587 420)"/>
+  </g>
+</svg>

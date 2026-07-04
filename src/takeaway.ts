@@ -64,6 +64,8 @@ export type Dish = {
   takeawayDishId?: string | null;
   /** Exact name string as it appears on takeaway.com, for DOM matching at cart-build time. */
   takeawayDishName?: string;
+  /** Public CDN URL of the dish photo, captured at scrape time. Used by the menu's photo view. */
+  imageUrl?: string;
 };
 
 type DataFile = {
@@ -93,9 +95,14 @@ function loadData(): DataFile {
 
   const manifest = loadManifest();
   const uploaded = loadUploaded();
+  // Mock/static dish photos live in the public GitHub repo — raw URLs are
+  // fetchable by Slack's image proxy, which is all photo view needs.
+  const IMG_BASE = "https://raw.githubusercontent.com/tdries/Foody-Slack-Hackathon-Submission/main/data/dish-images";
   for (const d of merged.dishes) {
     const entry = manifest[d.id];
-    if (entry && uploaded[entry.slug]) d.customEmoji = `foody_${entry.slug}`;
+    if (!entry) continue;
+    if (uploaded[entry.slug]) d.customEmoji = `foody_${entry.slug}`;
+    if (!d.imageUrl) d.imageUrl = `${IMG_BASE}/${entry.slug}.png`;
   }
 
   cache = merged;

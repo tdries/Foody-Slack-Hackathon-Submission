@@ -20,6 +20,7 @@ import {
   getDish,
 } from "./takeaway.ts";
 import { assignUniqueEmojis } from "./emojis.ts";
+import { emojiPrefsFor } from "./scrape-live.ts";
 
 function matchMenuEmoji(input: string, menu: { emoji: { unicode: string } }[]): { unicode: string } | null {
   const target = input.replace(/️/g, "").trim();
@@ -150,7 +151,10 @@ async function cmdMenu(args: Args) {
 
   const dishes = await getTopDishes(restaurant.id, 10);
   const emojis = assignUniqueEmojis(
-    dishes.map((d) => ({ customSlack: d.customEmoji, thematicPrefs: d.slackEmojiPrefs })),
+    dishes.map((d) => ({
+      customSlack: d.customEmoji,
+      thematicPrefs: [...emojiPrefsFor(d.category ?? null, d.name), ...(d.slackEmojiPrefs ?? [])],
+    })),
   );
   const menu: MenuItem[] = dishes.map((d, i) => ({
     emoji: emojis[i],
@@ -159,6 +163,7 @@ async function cmdMenu(args: Args) {
     name: d.name,
     price: d.price,
     description: d.description,
+    imageUrl: d.imageUrl,
   }));
 
   // Setting an active restaurant resets the cart — switching restaurants

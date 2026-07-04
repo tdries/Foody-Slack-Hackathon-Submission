@@ -16,6 +16,18 @@ import StealthPlugin from "puppeteer-extra-plugin-stealth";
 import type { Restaurant, Dish } from "./takeaway.ts";
 import { categoryById } from "./categories.ts";
 
+/**
+ * Just Eat Takeaway market to operate in. Two knobs, most specific wins:
+ *   FOODY_TAKEAWAY_BASE   — full storefront URL, for sister domains:
+ *                           https://www.thuisbezorgd.nl/en (NL),
+ *                           https://www.lieferando.de/en (DE)
+ *   FOODY_TAKEAWAY_LOCALE — path on takeaway.com itself: be-en (default), lu-en, bg-en
+ * Coverage is per-country; JET has no US market — a New York address can never
+ * resolve, it falls back to labelled demo data.
+ */
+const LOCALE = (process.env.FOODY_TAKEAWAY_LOCALE ?? "be-en").trim();
+const BASE = (process.env.FOODY_TAKEAWAY_BASE ?? `https://www.takeaway.com/${LOCALE}`).trim().replace(/\/+$/, "");
+
 puppeteer.use(StealthPlugin());
 
 let cachedBrowser: any = null;
@@ -45,15 +57,29 @@ async function dismissCookies(page: any) {
   await page.evaluate(() => {
     const btns = Array.from(document.querySelectorAll("button")) as HTMLButtonElement[];
     const accept = btns.find((b) =>
-      /accept all|alles accepter|alle accepteren|akkoord/i.test(b.textContent ?? ""),
+      /accept all|alles accepter|alle accepteren|akkoord|alle akzeptieren|zustimmen/i.test(b.textContent ?? ""),
     );
     accept?.click();
   });
   await new Promise((r) => setTimeout(r, 500));
 }
 
+/**
+ * takeaway.com's autocomplete fuzzy-matches ANY input to some location —
+ * "2nd street new york" happily resolved to Arlon, and we scraped Arlon
+ * pizzerias as "near you". Only accept a suggestion that shares at least one
+ * real token with what the user typed; otherwise fail the scrape (the caller
+ * falls back to clearly-labelled demo data).
+ */
+export function addressMatchesSuggestion(address: string, suggestion: string): boolean {
+  const tokens = address.toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length >= 3);
+  if (tokens.length === 0) return true; // nothing to compare — let it through
+  const s = suggestion.toLowerCase();
+  return tokens.some((t) => s.includes(t));
+}
+
 async function setAddress(page: any, address: string) {
-  await page.goto("https://www.takeaway.com/be-en", { waitUntil: "networkidle2", timeout: 60_000 });
+  await page.goto(BASE, { waitUntil: "networkidle2", timeout: 60_000 });
   await dismissCookies(page);
   const input = await page.$('input[name="searchText"]');
   if (!input) throw new Error("address input not found on homepage");
@@ -62,7 +88,33 @@ async function setAddress(page: any, address: string) {
   await page.type('input[name="searchText"]', address, { delay: 70 });
   await page.waitForSelector('[role="option"]', { timeout: 8000 });
   await new Promise((r) => setTimeout(r, 500));
-  await page.evaluate(() => (document.querySelector('[role="option"]') as HTMLElement | null)?.click());
+  // The dropdown's first entry is often a "Use your location" geolocation
+  // pseudo-option; real address suggestions render below it and can lag a
+  // moment behind. Pick the first REAL suggestion, never the pseudo-entry.
+  const pickSuggestion = (): Promise<{ idx: number; text: string } | null> =>
+    page.evaluate(() => {
+      // @ts-ignore — defuse esbuild's __name helper in the browser context.
+      if (typeof (globalThis as any).__name !== "function") (globalThis as any).__name = (fn: any) => fn;
+      const opts = Array.from(document.querySelectorAll('[role="option"]')) as HTMLElement[];
+      const isPseudo = (t: string) =>
+        /use your location|use my location|gebruik.*locatie|utiliser ma position|standort verwenden/i.test(t);
+      const idx = opts.findIndex((o) => (o.textContent ?? "").trim() && !isPseudo(o.textContent ?? ""));
+      return idx === -1 ? null : { idx, text: (opts[idx].textContent ?? "").trim() };
+    });
+  let suggestion = await pickSuggestion();
+  if (!suggestion) {
+    await new Promise((r) => setTimeout(r, 1500));
+    suggestion = await pickSuggestion();
+  }
+  if (!suggestion) throw new Error(`no address suggestions appeared for "${address}"`);
+  if (!addressMatchesSuggestion(address, suggestion.text)) {
+    throw new Error(
+      `address "${address}" didn't match a takeaway.com location (closest suggestion: "${suggestion.text}")`,
+    );
+  }
+  await page.evaluate((i: number) => {
+    (Array.from(document.querySelectorAll('[role="option"]'))[i] as HTMLElement | undefined)?.click();
+  }, suggestion.idx);
   await new Promise((r) => setTimeout(r, 4000));
 }
 
@@ -84,7 +136,7 @@ async function setAddress(page: any, address: string) {
  * already used — so collisions only fall to numeric badges when an entire
  * preference chain is exhausted.
  */
-function emojiPrefsFor(category: string | null, name: string): string[] {
+export function emojiPrefsFor(category: string | null, name: string): string[] {
   const lower = `${category ?? ""} ${name}`.toLowerCase();
   const prefs: string[] = [];
   const add = (slack: string): void => {
@@ -94,29 +146,42 @@ function emojiPrefsFor(category: string | null, name: string): string[] {
   // ---- Most specific signals first: a single ingredient or signature
   // topping/style is the best representation we can give a variant of a
   // generic dish family.
-  if (/peperoni|diavola|piri|chili|chili pepper|spicy|hot pepper|pikant/.test(lower)) add("hot_pepper");
+  if (/peperoni|diavola|piri|chili|chili pepper|spicy|hot pepper|pikant|\bpepers?\b|jalapen|jalapeñ/.test(lower)) add("hot_pepper");
   if (/funghi|mushroom|champignon|truff|tartufo/.test(lower)) add("mushroom");
   if (/hawai|ananas|pineapple/.test(lower)) add("pineapple");
   if (/cipolla|^onion|\buien\b/.test(lower)) add("onion");
   if (/bacon|spek|pancetta/.test(lower)) add("bacon");
   if (/margherita|marinara|pomodoro|tomato|tomaat|tomate/.test(lower)) add("tomato");
-  if (/4 ?form|quattro|four cheese|formaggi|cheese\b|cheddar|mozzar|kaas/.test(lower)) add("cheese_wedge");
+  if (/4 ?form|quattro|four cheese|formaggi|cheese\b|cheddar|mozzar|burrata|bufala|kaas/.test(lower)) add("cheese_wedge");
+  if (/caprese/.test(lower)) { add("tomato"); add("cheese_wedge"); add("leafy_green"); }
+  if (/saltimbocca|vitello|veal|scaloppin|ossobuco|piccata|kalfs/.test(lower)) add("cut_of_meat");
+  if (/tonnato/.test(lower)) add("fish");
   if (/carbonar/.test(lower)) add("bacon");
   if (/bolognese|bolognaise|ragu|ragout|gehakt/.test(lower)) add("cut_of_meat");
   if (/vegetar|veggie|vegan|vega\b|sla\b|salade|salad|rucola|rocket|spinach|spinazie/.test(lower)) add("leafy_green");
   if (/pesto|basil|herb|kruiden/.test(lower)) add("herb");
-  if (/chicken|wing|poulet|kip\b|poultry/.test(lower)) add("poultry_leg");
+  if (/chicken|wing|poulet|pollo|kip\b|poultry|nugge|nuges|tenders?\b/.test(lower)) add("poultry_leg");
+  if (/squid|calamar|inktvis/.test(lower)) { add("squid"); add("shrimp"); }
+  if (/octopus|pulpo|polpo/.test(lower)) add("octopus");
+  if (/prosciutto|parma|serrano|\bham\b|\bhesp\b/.test(lower)) add("bacon");
   if (/fish|salmon|tuna|cod|zalm|tonijn|kabeljauw|vis\b/.test(lower)) add("fish");
   if (/shrimp|prawn|garnaal|gambas|scampi/.test(lower)) add("shrimp");
   if (/egg|omelet|^ei|\beieren\b/.test(lower)) add("fried_egg");
   if (/kroket|croquette|bitterbal/.test(lower)) add("fried_shrimp");
   if (/dumpling|gyoza|ravio|tortelli/.test(lower)) add("dumpling");
+  if (/edamame|soy ?bean/.test(lower)) add("seedling");
+  if (/\bdragon\b/.test(lower)) add("dragon");
+  if (/avocado|guacamole/.test(lower)) add("avocado");
   if (/curry|tikka|masala/.test(lower)) add("curry");
   if (/rice|risotto|paella|nasi|rijst/.test(lower)) add("rice");
   if (/pannenkoek|pancake|crepe|crêpe|wafel|waffle/.test(lower)) add("pancakes");
   if (/coffee|cappuc|espresso|latte|koffie/.test(lower)) add("coffee");
   if (/ice ?cream|sorbet|sundae|ijs\b/.test(lower)) add("ice_cream");
-  if (/dessert|tiramis|panna|gelato|cake|brownie|gebak|taart/.test(lower)) add("cake");
+  if (/dessert|tiramis|panna|gelato|cake|brownie|gebak|taart|mochi|baklava|churro|gulab/.test(lower)) {
+    // Fan-out pool: menus often carry 2-3 desserts; without it the second one
+    // exhausts "cake" and lands on a numbered badge.
+    for (const e of ["cake", "ice_cream", "doughnut", "chocolate_bar", "pie", "honey_pot"]) add(e);
+  }
 
   // ---- Dish-family generics. These are the "if nothing more specific
   // matched" emoji for the whole category. Note we add fries BEFORE pizza so
@@ -134,7 +199,20 @@ function emojiPrefsFor(category: string | null, name: string): string[] {
   if (/sandwich|panini|bagel|broodje|sub\b/.test(lower)) add("sandwich");
   if (/bread|baguette|focaccia|naan|brood\b|stokbrood/.test(lower)) add("bread");
   if (/menu|combo|deal|formule|schotel/.test(lower)) add("bento");
-  if (/drink|coca|sprite|fanta|water|cola|juice|soda|frisdrank|limonade/.test(lower)) add("glass_of_milk");
+  // Drinks — specific first, so a menu with several drinks fans out over
+  // distinct emojis instead of collapsing onto one and falling to numbers.
+  if (/red ?bull|energiedrank|energy ?drink|monster|nalu/.test(lower)) add("zap");
+  if (/ice ?-?tea|icetea|ijsthee|lipton/.test(lower)) { add("bubble_tea"); add("lemon"); }
+  else if (/\btea\b|\bthee\b|matcha|chai/.test(lower)) add("tea");
+  if (/coca|cola|pepsi|sprite|fanta|soda|frisdrank|limonade/.test(lower)) add("cup_with_straw");
+  if (/juice|smoothie|\bsap\b|fruitsap|appelsap|sinaasappelsap/.test(lower)) add("beverage_box");
+  if (/milkshake|\bmilk\b|\bmelk\b|lassi|ayran/.test(lower)) add("glass_of_milk");
+  if (/\bwater\b|\bspa\b|bruiswater|sparkling|chaudfontaine/.test(lower)) add("droplet");
+  if (/\bbeer\b|\bbier\b|jupiler|stella|duvel|\bpils\b/.test(lower)) add("beer");
+  if (/\bwine\b|\bwijn\b|prosecco|\bcava\b|sangria/.test(lower)) add("wine_glass");
+  if (/drink|drank|\bblik\b|\bcan\b|\bml\b|\bcl\b/.test(lower)) {
+    for (const e of ["cup_with_straw", "beverage_box", "tropical_drink", "bubble_tea", "lemon", "glass_of_milk"]) add(e);
+  }
 
   // ---- Family decoratives. When several dishes of the same family appear
   // and the family's primary emoji is already taken (e.g. five plain pizzas
@@ -152,8 +230,8 @@ function emojiPrefsFor(category: string | null, name: string): string[] {
   if (/pasta|spaghet|tagliat|gnocch|penne|fettuc/.test(lower)) {
     for (const e of ["spaghetti", "tomato", "cheese_wedge", "mushroom", "bacon", "herb", "shrimp"]) add(e);
   }
-  if (/sushi|sashimi|maki|nigiri/.test(lower)) {
-    for (const e of ["sushi", "fish", "shrimp", "rice_ball", "rice"]) add(e);
+  if (/sushi|sashimi|maki|nigiri|california|philadelphia|tempura|\broll\b/.test(lower)) {
+    for (const e of ["sushi", "fish", "shrimp", "rice_ball", "rice", "takeout_box", "dumpling"]) add(e);
   }
   if (/burrito|taco|enchilada|nacho|wrap/.test(lower)) {
     for (const e of ["taco", "burrito", "hot_pepper", "cheese_wedge", "leafy_green"]) add(e);
@@ -237,13 +315,18 @@ async function scrapeListingsOnce(
     }> = await page.evaluate((scanLimit: number) => {
       // @ts-ignore — esbuild (tsx) emits __name() calls for named arrows; shim in the browser.
       if (typeof (globalThis as any).__name !== "function") (globalThis as any).__name = (fn: any) => fn;
-      const anchors = Array.from(document.querySelectorAll('a[href*="/be-en/menu/"]')) as HTMLAnchorElement[];
+      // Locale-agnostic on purpose: this runs in the browser context where the
+      // Node-side constants don't exist. Menu links are /<locale>/menu/<slug>
+      // on takeaway.com/thuisbezorgd, /speisekarte/<slug> on lieferando.
+      const anchors = Array.from(
+        document.querySelectorAll('a[href*="/menu/"], a[href*="/speisekarte/"]'),
+      ) as HTMLAnchorElement[];
       const seen = new Set<string>();
       const result: any[] = [];
       for (const a of anchors) {
         if (result.length >= scanLimit) break;
         const href = a.href;
-        const slugMatch = href.match(/\/be-en\/menu\/([^/?#]+)/);
+        const slugMatch = href.match(/\/(?:menu|speisekarte)\/([^/?#]+)/);
         if (!slugMatch) continue;
         const slug = slugMatch[1];
         if (seen.has(slug)) continue;
@@ -254,12 +337,19 @@ async function scrapeListingsOnce(
         const text = (card.textContent ?? "").replace(/\s+/g, " ").trim();
 
         // Name: prefer headings inside the card
-        const name =
+        const rawName =
           ((card.querySelector("h2, h3, [class*='Name'], [class*='name']") as HTMLElement | null)?.textContent ?? "")
             .trim()
             .split("\n")[0] ||
           (a.textContent ?? "").replace(/\s+/g, " ").trim().split(" — ")[0]?.slice(0, 60) ||
           slug;
+        // Promo carousels (thuisbezorgd/lieferando) leak marketing copy into
+        // the heading ("Up to 25% off …Order now"). The URL slug is the
+        // restaurant's real name — prefer it when the heading smells like an ad.
+        const name =
+          /%\s?off|order now|for free|deliveredorder/i.test(rawName) || rawName.length > 60
+            ? slug.replace(/-/g, " ").replace(/\b[a-z]/g, (c: string) => c.toUpperCase())
+            : rawName;
 
         // Cuisine hint (a comma-or-bullet-separated list right after the name)
         const cuisineMatch = text.match(/(?:Italian|Pizza|Burger|Sushi|Asian|Vietnamese|Indian|Thai|Mexican|Lebanese|Greek|Belgian|Vegetarian|Vegan|American|Mediterranean|Chinese|Japanese|French|Turkish|Korean|Spanish|Sandwiches?|Salads?|Desserts?)/i);
@@ -373,10 +463,36 @@ async function scrapeMenuOnce(
     });
     await new Promise((r) => setTimeout(r, 800));
 
-    const dishes: Array<{ name: string; price: number; category: string | null; takeawayDishId: string | null }> =
+    // Dish photos are lazy-loaded — walk the page viewport-by-viewport so the
+    // IntersectionObserver fires and <img> tags get their real src.
+    await page.evaluate(async () => {
+      const step = window.innerHeight || 800;
+      for (let y = 0; y <= document.body.scrollHeight; y += step) {
+        window.scrollTo(0, y);
+        await new Promise((r) => setTimeout(r, 200));
+      }
+      window.scrollTo(0, 0);
+    });
+    await new Promise((r) => setTimeout(r, 500));
+
+    const dishes: Array<{ name: string; price: number; category: string | null; takeawayDishId: string | null; imageUrl: string | null }> =
       await page.evaluate(() => {
         // @ts-ignore — defuse esbuild's __name helper in the browser context.
         if (typeof (globalThis as any).__name !== "function") (globalThis as any).__name = (fn: any) => fn;
+        // Best-available image URL: loaded src, else the lazy-loader's pending
+        // data-src, else the first srcset candidate.
+        const imgUrl = (img: HTMLImageElement | null): string | null => {
+          if (!img) return null;
+          const srcset = img.getAttribute("srcset") ?? img.getAttribute("data-srcset") ?? "";
+          const candidates = [
+            img.currentSrc,
+            img.src,
+            img.getAttribute("data-src"),
+            srcset.split(",")[0]?.trim().split(/\s+/)[0],
+          ];
+          for (const c of candidates) if (c && /^https?:/.test(c)) return c;
+          return null;
+        };
         // Strategy 1: the Pizza-Roma-shaped popular-items grid (React-hash class).
         let nameNodes = Array.from(
           document.querySelectorAll(".popular-item-style_name__T__oA"),
@@ -407,10 +523,11 @@ async function scrapeMenuOnce(
             (card.querySelector('[class*="popular-item-style_category"]') as HTMLElement | null)?.textContent?.trim() ??
             null;
           const img = card.querySelector("img") as HTMLImageElement | null;
-          const idMatch = img?.src?.match(/\/dishes\/(\d+)\//);
+          const url = imgUrl(img);
+          const idMatch = url?.match(/\/dishes\/(\d+)\//);
           const takeawayDishId = idMatch ? idMatch[1] : null;
           if (name && price !== null) {
-            result.push({ name, price, category, takeawayDishId });
+            result.push({ name, price, category, takeawayDishId, imageUrl: url });
           }
         }
 
@@ -456,9 +573,10 @@ async function scrapeMenuOnce(
               }
             }
             const img = row.querySelector("img") as HTMLImageElement | null;
-            const idMatch = img?.src?.match(/\/dishes\/(\d+)\//);
+            const url = imgUrl(img);
+            const idMatch = url?.match(/\/dishes\/(\d+)\//);
             const takeawayDishId = idMatch ? idMatch[1] : null;
-            result.push({ name, price, category, takeawayDishId });
+            result.push({ name, price, category, takeawayDishId, imageUrl: url });
             if (result.length >= 30) break;
           }
         }
@@ -495,10 +613,11 @@ async function scrapeMenuOnce(
             const priceMatch = priceText.match(/€?(\d+)[.,](\d{2})/);
             const price = priceMatch ? Number(priceMatch[1]) + Number(priceMatch[2]) / 100 : null;
             const img = card.querySelector("img") as HTMLImageElement | null;
-            const idMatch = img?.src?.match(/\/dishes\/(\d+)\//);
+            const url = imgUrl(img);
+            const idMatch = url?.match(/\/dishes\/(\d+)\//);
             const takeawayDishId = idMatch ? idMatch[1] : null;
             if (name && price !== null) {
-              result.push({ name, price, category: null, takeawayDishId });
+              result.push({ name, price, category: null, takeawayDishId, imageUrl: url });
               if (result.length >= 20) break;
             }
           }
@@ -519,6 +638,7 @@ async function scrapeMenuOnce(
       slackEmojiPrefs: emojiPrefsFor(d.category, d.name),
       takeawayDishId: d.takeawayDishId,
       takeawayDishName: d.name,
+      imageUrl: d.imageUrl ?? undefined,
     })) as Dish[];
   } finally {
     await page.close().catch(() => {});

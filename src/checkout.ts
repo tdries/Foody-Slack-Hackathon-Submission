@@ -83,6 +83,9 @@ export type CartBuildOptions = {
 
 const DEBUG_PORT = Number(process.env.FOODY_CHROME_DEBUG_PORT ?? "9222");
 const DEBUG_HOST = process.env.FOODY_CHROME_DEBUG_HOST ?? "localhost";
+/** JET market storefront — must match the market the menus were scraped from (see scrape-live.ts). */
+const TAKEAWAY_LOCALE = (process.env.FOODY_TAKEAWAY_LOCALE ?? "be-en").trim();
+const TAKEAWAY_BASE = (process.env.FOODY_TAKEAWAY_BASE ?? `https://www.takeaway.com/${TAKEAWAY_LOCALE}`).trim().replace(/\/+$/, "");
 
 /**
  * We attach to the user's already-running Chrome via the DevTools Protocol.
@@ -151,7 +154,7 @@ async function dismissCookies(page: any): Promise<void> {
 async function ensureAddressSet(page: any, address: string): Promise<void> {
   // Probe the homepage's address input. If we're already in a session with a
   // saved address, the autocomplete-flow is a no-op; otherwise we drive it.
-  await page.goto("https://www.takeaway.com/be-en", { waitUntil: "networkidle2", timeout: 60_000 });
+  await page.goto(TAKEAWAY_BASE, { waitUntil: "networkidle2", timeout: 60_000 });
   await dismissCookies(page);
   const inputHandle = await page.$('input[name="searchText"]').catch(() => null);
   if (!inputHandle) return; // No search input visible — already past the gate.
@@ -341,17 +344,34 @@ async function addOneDish(
       function nfc(s: string): string {
         return s.normalize("NFC").trim().toLowerCase();
       }
-      // Prefer a visible dialog/modal as the search scope.
-      const dialog =
-        (document.querySelector('[role="dialog"][data-qa="modal"]') as HTMLElement | null) ??
-        (document.querySelector('[role="dialog"]') as HTMLElement | null) ??
-        (document.querySelector('[class*="modal"], [class*="Modal"], [data-qa*="modal"]') as HTMLElement | null);
-      if (!dialog) return false;
+      // 0. Interstitial modals (busy-restaurant notice, preorder notice,
+      // drone-safety, login nag) stack ABOVE the item dialog, steal the
+      // [role=dialog] scope and block clicks. Dismiss and let the retry loop
+      // come back for the real dialog. Close-icon first — the login modal's
+      // primary button would START a login flow.
+      const interstitial = document.querySelector(
+        '[data-qa="throttled-partner-modal"], [data-qa="preorder-notification-modal"], [data-qa*="drone-delivery-safety"], [data-qa="last-login-modal-content"]',
+      ) as HTMLElement | null;
+      if (interstitial) {
+        const scopeEl = (interstitial.closest('[role="dialog"]') as HTMLElement | null) ?? interstitial;
+        const closeIcon = scopeEl.querySelector(
+          'pie-icon-button, [data-qa*="close"], [aria-label*="lose"], [aria-label*="luit"]',
+        ) as HTMLElement | null;
+        const ack = Array.from(scopeEl.querySelectorAll("pie-button, button")).find((b) =>
+          /i understand|ok\b|got it|begrepen|verder/i.test(b.textContent ?? ""),
+        ) as HTMLElement | undefined;
+        (closeIcon ?? ack)?.click();
+        return false;
+      }
+
+      // 1. The item-choices container has a unique data-qa — search globally
+      // instead of scoping to "the first dialog" (which may be the wrong one).
+      const choices = document.querySelector('[data-qa="item-choices"]') as HTMLElement | null;
 
       // Auto-select required single-choice radio groups (size, sauce, etc.). We
       // leave multi-choice groups (toppings) alone — those are optional extras.
       const radioGroups = Array.from(
-        dialog.querySelectorAll('[data-qa="item-choices-options-single-radio"]'),
+        (choices ?? document).querySelectorAll('[data-qa="item-choices-options-single-radio"]'),
       ) as HTMLElement[];
       for (const group of radioGroups) {
         const radios = Array.from(
@@ -364,14 +384,25 @@ async function addOneDish(
         }
       }
 
-      // Stable hook — submit becomes enabled once required choices are made.
+      // 2. Stable hook — unique per page, works regardless of modal stacking.
+      // <pie-button> is a web component: aria-disabled (not the data-qa suffix)
+      // is the live disabled signal.
       const submit =
-        (dialog.querySelector('[data-qa="item-choices-action-submit"]') as HTMLElement | null) ??
-        (dialog.querySelector('pie-button[data-qa*="submit"]:not([data-qa$="-disabled"])') as HTMLElement | null);
-      if (submit) {
+        (document.querySelector('[data-qa="item-choices-action-submit"]') as HTMLElement | null) ??
+        (document.querySelector('pie-button[data-qa*="submit"]:not([data-qa$="-disabled"])') as HTMLElement | null);
+      if (submit && submit.getAttribute("aria-disabled") !== "true") {
         submit.click();
         return true;
       }
+
+      // 3. Legacy fallback below needs a dialog scope — pick the one that
+      // contains the choices when we have it.
+      const dialog =
+        ((choices?.closest('[role="dialog"]') as HTMLElement | null) ?? null) ??
+        (document.querySelector('[role="dialog"][data-qa="modal"]') as HTMLElement | null) ??
+        (document.querySelector('[role="dialog"]') as HTMLElement | null) ??
+        (document.querySelector('[class*="modal"], [class*="Modal"], [data-qa*="modal"]') as HTMLElement | null);
+      if (!dialog) return false;
 
       // Fallback (older layouts): any clickable in the modal footer that looks
       // add-like. We exclude the disabled variant explicitly.
@@ -430,9 +461,9 @@ export async function buildCartOnTakeaway(
     return {
       ok: false,
       message:
-        `Couldn't reach your Chrome on ${DEBUG_HOST}:${DEBUG_PORT}. Quit Chrome and relaunch it once with the debug port:\n` +
-        "`open -a \"Google Chrome\" --args --remote-debugging-port=9222`\n" +
-        "Make sure you're signed into takeaway.com in that Chrome — then try again. The cart will be built in a *background tab* (no popup), and Pay will open here.",
+        `Couldn't reach your Chrome on ${DEBUG_HOST}:${DEBUG_PORT}. Launch a debug Chrome (Chrome 136+ requires a separate profile dir for this):\n` +
+        '`"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --remote-debugging-port=9222 --user-data-dir="$HOME/.foody-chrome" &`\n' +
+        "Sign into takeaway.com in that window (first time only — the profile is remembered) — then try again. The cart will be built in a *background tab* (no popup), and Pay will open here.",
       added: [],
       failed: state.cart.map((l) => l.dishId),
       needsLink: true,

@@ -22,11 +22,13 @@ import {
   getDish,
 } from "../takeaway.ts";
 import { assignUniqueEmojis } from "../emojis.ts";
+import { emojiPrefsFor } from "../scrape-live.ts";
 import {
   isFoodyTrigger,
   isOrderConfirm,
   isResetCommand,
   extractChangeAddress,
+  sanitizeAddress,
 } from "./intent.ts";
 import {
   restaurantsBlocks,
@@ -39,6 +41,7 @@ import {
 import { categoryById, CATEGORIES } from "../categories.ts";
 import { buildCartOnTakeaway } from "../checkout.ts";
 import { schedulePrewarm } from "../prewarm.ts";
+import { registerAssistant } from "./assistant.ts";
 
 const { App } = pkg as unknown as { App: new (...args: any[]) => any };
 
@@ -78,26 +81,32 @@ function startLookupTicker(
   subtitle?: string,
 ): () => void {
   let pct = 5;
-  const render = async () => {
-    try {
-      await client.chat.update({
-        channel,
-        ts,
-        text: title,
-        blocks: lookupBlocks({ title, subtitle, pct }),
+  let stopped = false;
+  // Track the latest in-flight chat.update so stop() can await it. Without this
+  // an already-dispatched "loading" render can land at Slack *after* the caller
+  // renders the final card, overwriting it (the menu got stuck on "5%").
+  let inFlight: Promise<unknown> = Promise.resolve();
+  const render = () => {
+    if (stopped) return;
+    inFlight = client.chat
+      .update({ channel, ts, text: title, blocks: lookupBlocks({ title, subtitle, pct }) })
+      .catch(() => {
+        // Slack rate limit / message deleted — the final render overwrites anyway.
       });
-    } catch {
-      // Slack rate limit / message deleted — silently swallow, the final
-      // success-update will overwrite anyway.
-    }
   };
-  void render();
+  render();
   const interval = setInterval(() => {
     // Asymptotic walk toward 90%.
     pct = Math.min(90, pct + Math.max(3, Math.round((90 - pct) * 0.18)));
-    void render();
+    render();
   }, 1400);
-  return () => clearInterval(interval);
+  // Async stop: no further renders fire (stopped flag) and any in-flight one is
+  // awaited, so the caller's final card can never be clobbered by the ticker.
+  return async () => {
+    stopped = true;
+    clearInterval(interval);
+    await inFlight;
+  };
 }
 
 /* ---------------------------------------------------------------------------
@@ -157,32 +166,51 @@ async function postRestaurants(
   const lookupTitle = categoryLabel
     ? `Looking up ${cat?.label.toLowerCase()} spots near you`
     : "Looking up real restaurants near you";
-  const placeholder = await client.chat.postMessage({
-    channel,
-    thread_ts: threadTs,
-    text: lookupTitle,
-    blocks: lookupBlocks({ title: lookupTitle, subtitle: `📍 *${state.address}*`, pct: 5 }),
-  });
-  const stopTicker = startLookupTicker(client, channel, placeholder.ts as string, lookupTitle, `📍 *${state.address}*`);
+  // Re-picking a cuisine recycles the existing list message (chat.update on
+  // the stored ts) instead of stacking a new list per tap. Falls back to a
+  // fresh post if the old message is gone (deleted / cancelled).
+  const placeholderBlocks = lookupBlocks({ title: lookupTitle, subtitle: `📍 *${state.address}*`, pct: 5 });
+  let placeholderTs = state.restaurantsMessageTs ?? null;
+  if (placeholderTs) {
+    const recycled = await client.chat
+      .update({ channel, ts: placeholderTs, text: lookupTitle, blocks: placeholderBlocks })
+      .then(() => true)
+      .catch(() => false);
+    if (!recycled) placeholderTs = null;
+  }
+  if (!placeholderTs) {
+    const placeholder = await client.chat.postMessage({
+      channel,
+      thread_ts: threadTs,
+      text: lookupTitle,
+      blocks: placeholderBlocks,
+    });
+    placeholderTs = placeholder.ts as string;
+    state.restaurantsMessageTs = placeholderTs;
+    saveState(state);
+  }
+  const stopTicker = startLookupTicker(client, channel, placeholderTs, lookupTitle, `📍 *${state.address}*`);
 
   const restaurants = await findRestaurants(state.address, 3, state.category);
-  stopTicker();
+  await stopTicker();
+  // The final renders can hit message_not_found if the user cancelled mid-lookup
+  // (Cancel sweeps the placeholder) — that's a valid outcome, not a crash.
   if (restaurants.length === 0) {
     await client.chat.update({
       channel,
-      ts: placeholder.ts,
+      ts: placeholderTs,
       text: `Sorry, I can't find any spots near *${state.address}*. Try a different address.`,
-    });
+    }).catch(() => {});
     return;
   }
   await client.chat.update({
     channel,
-    ts: placeholder.ts,
+    ts: placeholderTs,
     text: categoryLabel
       ? `Top 3 ${cat?.label.toLowerCase()} spots near ${state.address}`
       : `Top 3 spots near ${state.address}`,
     blocks: restaurantsBlocks(state.address, restaurants, state.user, cat?.label),
-  });
+  }).catch(() => {});
 }
 
 async function postMenuAndPreReact(
@@ -216,7 +244,7 @@ async function postMenuAndPreReact(
   );
 
   const dishes = await getTopDishes(restaurant.id, 10);
-  stopMenuTicker();
+  await stopMenuTicker();
   if (dishes.length === 0) {
     await client.chat.update({
       channel,
@@ -231,11 +259,16 @@ async function postMenuAndPreReact(
           },
         },
       ],
-    });
+    }).catch(() => {});
     return;
   }
   const emojis = assignUniqueEmojis(
-    dishes.map((d) => ({ customSlack: d.customEmoji, thematicPrefs: d.slackEmojiPrefs })),
+    // Prefs are recomputed at render time — cached menus bake in whatever the
+    // matcher knew at scrape time, and would pin old/bad picks for 24h.
+    dishes.map((d) => ({
+      customSlack: d.customEmoji,
+      thematicPrefs: [...emojiPrefsFor(d.category ?? null, d.name), ...(d.slackEmojiPrefs ?? [])],
+    })),
   );
   const menu: MenuItem[] = dishes.map((d, i) => ({
     emoji: emojis[i],
@@ -245,6 +278,7 @@ async function postMenuAndPreReact(
     name: d.name,
     price: d.price,
     description: d.description,
+    imageUrl: d.imageUrl,
   }));
 
   state.menu = menu;
@@ -312,24 +346,11 @@ app.message(async ({ message, client }: any) => {
   const ts: string = message.ts;
   const threadTs: string = message.thread_ts ?? ts;
 
-  // -- in-thread address answer (we previously asked for one)
+  // -- in-thread handling. Order matters: commands (reset, change address)
+  // must run BEFORE the pending-address capture, or "reset" typed at the
+  // address prompt gets stored as the delivery address.
   if (message.thread_ts) {
     const sess = loadState(sessionKey(channel, message.thread_ts));
-    if (sess.pendingPrompt === "address" && sess.initiator === userId) {
-      const addr = text?.trim();
-      if (!addr) return;
-      sess.address = addr;
-      sess.pendingPrompt = null;
-      saveState(sess);
-      setDefaultAddress(userId, addr);
-      await client.chat.postMessage({
-        channel,
-        thread_ts: threadTs,
-        text: `Got it — delivering to *${addr}*. Saved as your default.`,
-      });
-      await postCategoryPicker(client, channel, threadTs, sess);
-      return;
-    }
 
     // -- in-thread reset
     if (isResetCommand(text)) {
@@ -346,9 +367,16 @@ app.message(async ({ message, client }: any) => {
     const changed = extractChangeAddress(text);
     if (changed && sess.initiator === userId) {
       sess.address = changed;
-      // Address changed → previous category pick may no longer be relevant
-      // (different neighbourhood, different cuisine mix). Reset and re-pick.
+      // Address changed → previous picks may no longer be relevant
+      // (different neighbourhood, different restaurants). Clear the round.
       sess.category = null;
+      sess.activeRestaurantId = null;
+      sess.activeRestaurantName = null;
+      sess.activeRestaurant = null;
+      sess.menu = [];
+      sess.cart = [];
+      sess.menuMessageTs = null;
+      sess.pendingPrompt = null;
       saveState(sess);
       setDefaultAddress(userId, changed);
       await client.chat.postMessage({
@@ -360,14 +388,45 @@ app.message(async ({ message, client }: any) => {
       return;
     }
 
+    // -- in-thread address answer (we previously asked for one)
+    if (sess.pendingPrompt === "address" && sess.initiator === userId) {
+      const addr = sanitizeAddress(text ?? "");
+      if (!addr) return;
+      // Must look at least vaguely like an address (a digit or 2+ words) —
+      // otherwise re-ask instead of storing "why?" as the delivery address.
+      if (!/\d/.test(addr) && addr.split(/\s+/).length < 2) {
+        await client.chat.postMessage({
+          channel,
+          thread_ts: threadTs,
+          text: `Hmm, *${addr}* doesn't look like an address — give me street + number, postcode, city (e.g. _Meir 1, 2000 Antwerpen_).`,
+        });
+        return;
+      }
+      sess.address = addr;
+      sess.pendingPrompt = null;
+      saveState(sess);
+      setDefaultAddress(userId, addr);
+      await client.chat.postMessage({
+        channel,
+        thread_ts: threadTs,
+        text: `Got it — delivering to *${addr}*. Saved as your default.`,
+      });
+      await postCategoryPicker(client, channel, threadTs, sess);
+      return;
+    }
+
     // -- in-thread "order"
     if (isOrderConfirm(text) && sess.activeRestaurantId && sess.cart.length > 0) {
       await placeOrder(client, channel, threadTs, sess);
       return;
     }
+
+    // -- "let's eat" typed inside a thread that already ran an order would
+    // resetState() the live session and nuke the shared cart. Ignore it.
+    if (sess.initiator) return;
   }
 
-  // -- new "let's eat" trigger (must be outside an existing Foody thread)
+  // -- new "let's eat" trigger
   if (!isFoodyTrigger(text)) return;
 
   const key = sessionKey(channel, threadTs);
@@ -430,6 +489,10 @@ for (const cat of CATEGORIES) {
  * pick_restaurant button — load menu, post it, pre-react
  * ------------------------------------------------------------------------- */
 
+// Menu loads take 10-15s live; double-clicking "See menu" (or re-clicking the
+// same card) would run two scrapes and post two menus into the thread.
+const menuLoadsInFlight = new Set<string>();
+
 app.action("pick_restaurant", async ({ ack, body, action, client }: any) => {
   await ack();
   const parsed = JSON.parse(action.value);
@@ -439,6 +502,16 @@ app.action("pick_restaurant", async ({ ack, body, action, client }: any) => {
   const threadTs: string = body.message.thread_ts ?? body.message.ts;
 
   const sess = loadState(key);
+  if (sess.activeRestaurantId === restaurantId && sess.menuMessageTs) return; // already showing this menu
+  if (menuLoadsInFlight.has(key)) return; // a menu load for this session is already running
+  menuLoadsInFlight.add(key);
+  try {
+  await handlePickRestaurant();
+  } finally {
+    menuLoadsInFlight.delete(key);
+  }
+
+  async function handlePickRestaurant() {
   if (!sess.address) {
     await client.chat.postMessage({
       channel,
@@ -485,6 +558,7 @@ app.action("pick_restaurant", async ({ ack, body, action, client }: any) => {
   }
 
   await postMenuAndPreReact(client, channel, threadTs, sess);
+  }
 });
 
 /* ---------------------------------------------------------------------------
@@ -653,6 +727,7 @@ async function placeOrder(client: any, channel: string, threadTs: string, sess: 
       sess.activeRestaurant = null;
       sess.menu = [];
       sess.menuMessageTs = null;
+      sess.restaurantsMessageTs = null;
       saveState(sess);
     }
 
@@ -695,6 +770,7 @@ async function placeOrder(client: any, channel: string, threadTs: string, sess: 
   sess.activeRestaurant = null;
   sess.menu = [];
   sess.menuMessageTs = null;
+  sess.restaurantsMessageTs = null;
   saveState(sess);
 
   await client.chat.postMessage({
@@ -764,6 +840,24 @@ async function deleteBotMessagesInThread(
   return deleted;
 }
 
+app.action("toggle_menu_view", async ({ ack, body, action, client }: any) => {
+  await ack();
+  const sess = loadState(action.value as string);
+  const userId: string = body.user.id;
+  // The order initiator picks the view for everyone.
+  if (sess.initiator && userId !== sess.initiator) {
+    await client.chat.postEphemeral({
+      channel: body.channel.id,
+      user: userId,
+      text: `Only <@${sess.initiator}> (who started this order) can switch the menu view.`,
+    }).catch(() => {});
+    return;
+  }
+  sess.menuView = sess.menuView === "photos" ? "grid" : "photos";
+  saveState(sess);
+  await postCart(client, body.channel.id, sess);
+});
+
 app.action("cancel_session", async ({ ack, body, action, client }: any) => {
   await ack();
   const key: string = action.value;
@@ -788,6 +882,7 @@ app.action("cancel_session", async ({ ack, body, action, client }: any) => {
   sess.menu = [];
   sess.cart = [];
   sess.menuMessageTs = null;
+  sess.restaurantsMessageTs = null;
   sess.pendingPrompt = null;
   saveState(sess);
 
@@ -807,6 +902,13 @@ app.action("cancel_session", async ({ ack, body, action, client }: any) => {
     blocks: categoryBlocks(address, key),
   });
 });
+
+/* ---------------------------------------------------------------------------
+ * AI assistant pane (Slack AI apps) — natural language in a split-pane thread,
+ * hands off to the channel reaction-cart flow above. See assistant.ts.
+ * ------------------------------------------------------------------------- */
+
+registerAssistant(app, { channelAllowed, postRestaurants, postMenuAndPreReact });
 
 /* ---------------------------------------------------------------------------
  * Boot

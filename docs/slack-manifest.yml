@@ -13,6 +13,13 @@ features:
     home_tab_enabled: false
     messages_tab_enabled: true
     messages_tab_read_only_enabled: false
+  # Slack AI apps: the split-pane assistant surface (suggested prompts, status,
+  # thread context). Powers the natural-language ordering flow in assistant.ts.
+  assistant_view:
+    assistant_description: >-
+      Tell Foody what the team is hungry for — it finds restaurants near you,
+      checks menus and prices, and kicks off an emoji-reaction group order in
+      your channel.
 
 oauth_config:
   scopes:
@@ -29,6 +36,8 @@ oauth_config:
       - reactions:write
       # Read minimal user info for the address book greeting
       - users:read
+      # AI assistant pane: set status, title, suggested prompts
+      - assistant:write
 
 settings:
   event_subscriptions:
@@ -39,6 +48,9 @@ settings:
       - message.mpim
       - reaction_added
       - reaction_removed
+      # AI assistant pane lifecycle
+      - assistant_thread_started
+      - assistant_thread_context_changed
   interactivity:
     is_enabled: true
   socket_mode_enabled: true

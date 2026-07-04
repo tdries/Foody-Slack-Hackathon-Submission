@@ -68,7 +68,60 @@ export const SLACK_TO_UNICODE: Record<string, string> = {
   sandwich: "🥪",
   coffee: "☕",
   corn: "🌽",
+  fried_egg: "🍳",
+  pancakes: "🥞",
+  fried_shrimp: "🍤",
+  cup_with_straw: "🥤",
+  beverage_box: "🧃",
+  bubble_tea: "🧋",
+  tropical_drink: "🍹",
+  lemon: "🍋",
+  zap: "⚡",
+  droplet: "💧",
+  beer: "🍺",
+  wine_glass: "🍷",
+  squid: "🦑",
+  octopus: "🐙",
+  crab: "🦀",
+  lobster: "🦞",
+  oyster: "🦪",
+  green_salad: "🥗",
+  shallow_pan_of_food: "🥘",
+  bowl_with_spoon: "🥣",
+  knife_fork_plate: "🍽️",
+  fork_and_knife: "🍴",
+  pretzel: "🥨",
+  bagel: "🥯",
+  waffle: "🧇",
+  cookie: "🍪",
+  cupcake: "🧁",
+  strawberry: "🍓",
+  cherries: "🍒",
+  grapes: "🍇",
+  watermelon: "🍉",
+  banana: "🍌",
+  carrot: "🥕",
+  potato: "🥔",
+  broccoli: "🥦",
+  garlic: "🧄",
 };
+
+/**
+ * Neutral, appetizing emojis for dishes whose preference chain is exhausted —
+ * walked BEFORE numbered badges, which are effectively banned: with this pool
+ * plus the full table above, a 10-dish menu can never run out of food emojis.
+ */
+export const GENERIC_FOOD_POOL: string[] = [
+  "knife_fork_plate",
+  "fork_and_knife",
+  "shallow_pan_of_food",
+  "bowl_with_spoon",
+  "green_salad",
+  "stew",
+  "takeout_box",
+  "bento",
+  ...Object.keys(SLACK_TO_UNICODE),
+];
 
 /** Reverse lookup, built lazily. */
 const UNICODE_TO_SLACK: Record<string, string> = Object.fromEntries(
@@ -146,6 +199,15 @@ export function assignUniqueEmojis(hints: DishEmojiHint[]): EmojiPair[] {
     if (assigned) {
       used.add(assigned.slack);
       out.push(assigned);
+      continue;
+    }
+    // Never numbers if any food emoji is free — walk the neutral pool, then
+    // the entire table. Numbered badges survive only as a theoretical last
+    // resort (a menu bigger than the whole emoji table).
+    const generic = GENERIC_FOOD_POOL.find((s) => !used.has(s) && SLACK_TO_UNICODE[s]);
+    if (generic) {
+      used.add(generic);
+      out.push({ unicode: SLACK_TO_UNICODE[generic], slack: generic });
       continue;
     }
     while (fallbackIdx < FALLBACK_EMOJIS.length && used.has(FALLBACK_EMOJIS[fallbackIdx].slack)) {

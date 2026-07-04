@@ -20,6 +20,8 @@ export type MenuItem = {
   takeawayDishName?: string;
   /** Numeric takeaway.com dish id (parsed from /dishes/{id}/ in the image URL). Used to locate the row by image at cart-build time. */
   takeawayDishId?: string | null;
+  /** Public CDN URL of the dish photo — powers the menu's photo view. */
+  imageUrl?: string;
 };
 
 /** What the bot is waiting on next in this conversation, if anything. */
@@ -42,6 +44,10 @@ export type FoodyState = {
   pendingPrompt: PendingPrompt;
   /** The Slack ts of the menu message we pre-reacted to, so reaction events can be matched to the right session. */
   menuMessageTs: string | null;
+  /** The Slack ts of the restaurants-list message — recycled on cuisine re-pick so the thread doesn't grow one list per tap. */
+  restaurantsMessageTs?: string | null;
+  /** Menu render style, toggled by the order initiator. Grid = 2-column emoji list. */
+  menuView?: "grid" | "photos";
   updatedAt: string;
 };
 

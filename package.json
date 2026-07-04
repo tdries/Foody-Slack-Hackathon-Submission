@@ -2,14 +2,17 @@
   "name": "foody",
   "version": "0.1.0",
   "private": true,
-  "description": "Foody — a Slack-native group food-ordering bot fronting takeaway.com",
+  "description": "Foody \u2014 a Slack-native group food-ordering bot fronting takeaway.com",
   "type": "module",
   "scripts": {
     "dev:slack": "tsx watch src/slack/app.ts",
     "foody": "tsx src/cli.ts",
-    "typecheck": "tsc --noEmit -p tsconfig.json"
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.110.0",
     "@slack/bolt": "^4.1.1",
     "dotenv": "^16.4.7"
   },
@@ -20,6 +23,7 @@
     "puppeteer-extra-plugin-stealth": "^2.11.2",
     "sharp": "^0.34.5",
     "tsx": "^4.19.2",
-    "typescript": "^5.7.2"
+    "typescript": "^5.7.2",
+    "vitest": "^4.1.9"
   }
 }
