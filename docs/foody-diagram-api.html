@@ -41,7 +41,9 @@
   .heads .chip{display:flex;flex-direction:column;align-items:center;gap:1px;font-family:var(--display);font-weight:700;font-size:11.5px;color:#fff;border-radius:9px;padding:5px 13px;min-width:160px;text-align:center}
   .heads .chip small{font-family:var(--mono);font-weight:500;font-size:8px;opacity:.85}
   .heads .h:nth-child(1) .chip{background:var(--purple)} .heads .h:nth-child(2) .chip{background:var(--auber)}
-  .heads .h:nth-child(3) .chip{background:var(--dark)} .heads .h:nth-child(4) .chip{background:var(--api)}
+  .heads .h:nth-child(3) .chip{background:var(--dark)} .heads .h:nth-child(4) .chip{background:var(--red)}
+  .heads .h:nth-child(5) .chip{background:var(--api)}
+  .heads .chip{min-width:120px !important}
   .lifelines{position:absolute;left:0;right:0;top:40px;bottom:0;z-index:0}
   .lifelines i{position:absolute;top:0;bottom:0;border-left:2px dashed #D6D4CC;transform:translateX(-1px)}
   .lifelines i.api{border-left-color:#9ED4D4}
@@ -79,7 +81,7 @@
 <div class="page">
   <header>
     <img class="mark" src="assets/foody-mark-tile.png" alt="Foody">
-    <div class="brand"><h1>Foody — request sequence with the official Just Eat Takeaway.com API</h1><div class="sub">Same installed Slack agent &amp; same steps — only the takeaway hops (4, 9, 10) become API calls</div></div>
+    <div class="brand"><h1>Foody — request sequence with the official Just Eat Takeaway.com API</h1><div class="sub">Same Slack AI app &amp; same steps — only the takeaway hops (4, 9, 10) become API calls</div></div>
     <div class="pill">✓ No browser · fully headless · cloud-deployable</div>
   </header>
 
@@ -87,37 +89,39 @@
     <span class="k"><span class="sw" style="border-color:var(--auber)"></span>Slack event (Socket Mode)</span>
     <span class="k"><span class="sw" style="border-color:var(--blue)"></span>Slack Web API</span>
     <span class="k"><span class="sw" style="border-color:var(--purple)"></span>Human action</span>
+    <span class="k"><span class="sw" style="border-color:var(--red)"></span>Claude (AI assistant) tool-use</span>
     <span class="k"><span class="sw" style="border-color:var(--api)"></span>Takeaway partner API (REST + webhook)</span>
     <span class="k"><span class="sw" style="border-color:var(--green)"></span>Result</span>
   </div>
 
   <div class="install">
     <div class="b0">0</div>
-    <div class="txt"><b>Installed once →</b> same as today: <code>manifest.yml</code> → OAuth bot scopes → <b>@Foody</b> bot user → persistent <b>Socket Mode</b> WebSocket (<code>xapp-…</code>). <b>New:</b> Foody also holds a Takeaway <b>partner API key</b> + a <b>webhook endpoint</b> for order status. Runs <b>fully headless</b> — no user's Chrome, deploy anywhere.</div>
+    <div class="txt"><b>Installed once →</b> same as today: <code>manifest.yml</code> → OAuth bot scopes (incl. <code>assistant:write</code>) → <b>@Foody</b> bot user + <b>✨ AI-app assistant surface</b> → persistent <b>Socket Mode</b> WebSocket (<code>xapp-…</code>). <b>New:</b> Foody also holds a Takeaway <b>partner API key</b> + a <b>webhook endpoint</b> for order status. Runs <b>fully headless</b> — no user's Chrome, deploy anywhere.</div>
   </div>
 
   <div class="seq">
     <div class="heads">
       <div class="h"><div class="chip">🧑‍🤝‍🧑 The team<small>#lunch-crew</small></div></div>
-      <div class="h"><div class="chip">Slack platform<small>Events API · Web API</small></div></div>
+      <div class="h"><div class="chip">Slack platform<small>AI app · Events · Web API</small></div></div>
       <div class="h"><div class="chip">🍴 Foody agent<small>Bolt · Socket Mode · cloud</small></div></div>
+      <div class="h"><div class="chip">🧠 Claude<small>Anthropic API · tool use</small></div></div>
       <div class="h"><div class="chip">Takeaway API<small>partner REST · webhooks</small></div></div>
     </div>
     <div class="lifelines">
-      <i style="left:12.5%"></i><i style="left:37.5%"></i><i style="left:62.5%"></i><i class="api" style="left:87.5%"></i>
+      <i style="left:10%"></i><i style="left:30%"></i><i style="left:50%"></i><i style="left:70%"></i><i class="api" style="left:90%"></i>
     </div>
 
     <div class="rows">
-      <div class="step"><div class="msg r" style="--c:var(--purple);left:12.5%;width:25%"><span class="num">1</span><span class="lab">types <b>“let's eat something”</b></span></div></div>
-      <div class="step"><div class="msg r" style="--c:var(--auber);left:37.5%;width:25%"><span class="num">2</span><span class="lab">event ▸ <b>message.channels</b> → intent.ts</span></div></div>
-      <div class="step"><div class="msg l" style="--c:var(--blue);left:37.5%;width:25%"><span class="num">3</span><span class="lab">web ▸ <b>chat.postMessage</b> (greeting · addr_&lt;user&gt;)</span></div></div>
-      <div class="step"><div class="msg bi" style="--c:var(--api);left:62.5%;width:25%"><span class="num">4</span><span class="lab">REST ▸ <b>GET /restaurants</b> · <b>GET /menu</b></span><span class="okflag">✓ structured · live availability · allergens</span></div></div>
-      <div class="step"><div class="msg l" style="--c:var(--blue);left:37.5%;width:25%"><span class="num">5</span><span class="lab">web ▸ <b>chat.postMessage</b> menu + <b>reactions.add</b> ×10</span></div></div>
-      <div class="step"><div class="msg r" style="--c:var(--auber);left:12.5%;width:50%"><span class="num">6</span><span class="lab">emoji tap → event ▸ <b>reaction_added / reaction_removed</b></span></div></div>
-      <div class="step"><div class="msg l" style="--c:var(--blue);left:37.5%;width:25%"><span class="num">7</span><span class="lab">web ▸ <b>reactions.get</b> → reconcile → <b>chat.update</b></span></div></div>
-      <div class="step"><div class="msg r" style="--c:var(--auber);left:12.5%;width:50%"><span class="num">8</span><span class="lab">tap <b>“Order now”</b> → event ▸ <b>block_actions</b></span></div></div>
-      <div class="step"><div class="msg bi" style="--c:var(--api);left:62.5%;width:25%"><span class="num">9</span><span class="lab">REST ▸ <b>POST /basket → /order → /payment</b></span><span class="okflag">✓ real order + payment, no browser</span></div></div>
-      <div class="step"><div class="msg l dash" style="--c:var(--api);left:37.5%;width:50%"><span class="num">10</span><span class="lab">webhook ▸ <b>order.status</b> → <b>chat.update</b> live tracking + receipt</span></div></div>
+      <div class="step"><div class="msg r" style="--c:var(--purple);left:10%;width:20%"><span class="num">1</span><span class="lab">asks the <b>✨ AI assistant</b> — or types <b>“let's eat”</b> in a channel</span></div></div>
+      <div class="step"><div class="msg r" style="--c:var(--auber);left:30%;width:20%"><span class="num">2</span><span class="lab">event ▸ <b>assistant thread</b> / message.channels</span></div></div>
+      <div class="step"><div class="msg bi" style="--c:var(--red);left:50%;width:20%"><span class="num">3</span><span class="lab"><b>Claude tool-use loop</b> ▸ plan · live status · <b>start_group_order</b></span></div></div>
+      <div class="step"><div class="msg bi" style="--c:var(--api);left:50%;width:40%"><span class="num">4</span><span class="lab">REST ▸ <b>GET /restaurants</b> · <b>GET /menu</b></span><span class="okflag">✓ structured · live availability · allergens</span></div></div>
+      <div class="step"><div class="msg l" style="--c:var(--blue);left:30%;width:20%"><span class="num">5</span><span class="lab">web ▸ <b>chat.postMessage</b> menu + <b>reactions.add</b> ×10</span></div></div>
+      <div class="step"><div class="msg r" style="--c:var(--auber);left:10%;width:40%"><span class="num">6</span><span class="lab">emoji tap → event ▸ <b>reaction_added / reaction_removed</b></span></div></div>
+      <div class="step"><div class="msg l" style="--c:var(--blue);left:30%;width:20%"><span class="num">7</span><span class="lab">web ▸ <b>reactions.get</b> → reconcile → <b>chat.update</b></span></div></div>
+      <div class="step"><div class="msg r" style="--c:var(--auber);left:10%;width:40%"><span class="num">8</span><span class="lab">tap <b>“Order now”</b> → event ▸ <b>block_actions</b></span></div></div>
+      <div class="step"><div class="msg bi" style="--c:var(--api);left:50%;width:40%"><span class="num">9</span><span class="lab">REST ▸ <b>POST /basket → /order → /payment</b></span><span class="okflag">✓ real order + payment, no browser</span></div></div>
+      <div class="step"><div class="msg l dash" style="--c:var(--api);left:30%;width:60%"><span class="num">10</span><span class="lab">webhook ▸ <b>order.status</b> → <b>chat.update</b> live tracking + receipt</span></div></div>
     </div>
   </div>
 
@@ -149,7 +153,7 @@
   </div>
 
   <div class="foot">
-    <span><span class="barbar"><i style="background:var(--red)"></i><i style="background:var(--yellow)"></i><i style="background:var(--blue)"></i><i style="background:var(--green)"></i></span><b>The Slack side is byte-for-byte identical</b> to today — same install, same events, same Block Kit. Only steps 4, 9 &amp; 10 change: brittle browser automation becomes a partner API + status webhook.</span>
+    <span><span class="barbar"><i style="background:var(--red)"></i><i style="background:var(--yellow)"></i><i style="background:var(--blue)"></i><i style="background:var(--green)"></i></span><b>The Slack side — AI assistant included — is byte-for-byte identical</b> to today: same install, same assistant surface, same events, same Block Kit. Only steps 4, 9 &amp; 10 change: brittle browser automation becomes a partner API + status webhook.</span>
     <span style="margin-left:auto"><b>Foody</b> · Work hard, skip hangry.</span>
   </div>
 </div>
