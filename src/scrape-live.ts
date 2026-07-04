@@ -15,6 +15,8 @@ import puppeteer from "puppeteer-extra";
 import StealthPlugin from "puppeteer-extra-plugin-stealth";
 import type { Restaurant, Dish } from "./takeaway.ts";
 import { categoryById } from "./categories.ts";
+import { emojiPrefsFor } from "./emojis.ts";
+export { emojiPrefsFor };
 
 /**
  * Just Eat Takeaway market to operate in. Two knobs, most specific wins:
@@ -29,6 +31,7 @@ const LOCALE = (process.env.FOODY_TAKEAWAY_LOCALE ?? "be-en").trim();
 const BASE = (process.env.FOODY_TAKEAWAY_BASE ?? `https://www.takeaway.com/${LOCALE}`).trim().replace(/\/+$/, "");
 
 puppeteer.use(StealthPlugin());
+
 
 let cachedBrowser: any = null;
 
@@ -118,145 +121,6 @@ async function setAddress(page: any, address: string) {
   await new Promise((r) => setTimeout(r, 4000));
 }
 
-/**
- * Per-dish ordered emoji preferences. Returns multiple candidate Slack emoji
- * names so that several variants of the same dish family (e.g. 5 pizzas) can
- * each get a distinct, semantically meaningful emoji rather than collapsing to
- * the same one and falling back to 1️⃣ 2️⃣ 3️⃣.
- *
- * Tests run in order: SPECIFIC (toppings, ingredients, signature dishes) →
- * GENERIC (dish family) → FALLBACK. Each match appends to the prefs list,
- * deduped, so a single dish accumulates multiple options. Example:
- *   "Pizza Funghi"        → [mushroom, pizza, pie]
- *   "Pizza Peperoni"      → [hot_pepper, pizza, pie]
- *   "Pizza Margherita"    → [tomato, cheese_wedge, pizza, pie]
- *   "Pizza ananas"        → [pineapple, pizza, pie]
- *
- * assignUniqueEmojis() walks each dish's prefs and picks the first option not
- * already used — so collisions only fall to numeric badges when an entire
- * preference chain is exhausted.
- */
-export function emojiPrefsFor(category: string | null, name: string): string[] {
-  const lower = `${category ?? ""} ${name}`.toLowerCase();
-  const prefs: string[] = [];
-  const add = (slack: string): void => {
-    if (!prefs.includes(slack)) prefs.push(slack);
-  };
-
-  // ---- Most specific signals first: a single ingredient or signature
-  // topping/style is the best representation we can give a variant of a
-  // generic dish family.
-  if (/peperoni|diavola|piri|chili|chili pepper|spicy|hot pepper|pikant|\bpepers?\b|jalapen|jalapeñ/.test(lower)) add("hot_pepper");
-  if (/funghi|mushroom|champignon|truff|tartufo/.test(lower)) add("mushroom");
-  if (/hawai|ananas|pineapple/.test(lower)) add("pineapple");
-  if (/cipolla|^onion|\buien\b/.test(lower)) add("onion");
-  if (/bacon|spek|pancetta/.test(lower)) add("bacon");
-  if (/margherita|marinara|pomodoro|tomato|tomaat|tomate/.test(lower)) add("tomato");
-  if (/4 ?form|quattro|four cheese|formaggi|cheese\b|cheddar|mozzar|burrata|bufala|kaas/.test(lower)) add("cheese_wedge");
-  if (/caprese/.test(lower)) { add("tomato"); add("cheese_wedge"); add("leafy_green"); }
-  if (/saltimbocca|vitello|veal|scaloppin|ossobuco|piccata|kalfs/.test(lower)) add("cut_of_meat");
-  if (/tonnato/.test(lower)) add("fish");
-  if (/carbonar/.test(lower)) add("bacon");
-  if (/bolognese|bolognaise|ragu|ragout|gehakt/.test(lower)) add("cut_of_meat");
-  if (/vegetar|veggie|vegan|vega\b|sla\b|salade|salad|rucola|rocket|spinach|spinazie/.test(lower)) add("leafy_green");
-  if (/pesto|basil|herb|kruiden/.test(lower)) add("herb");
-  if (/chicken|wing|poulet|pollo|kip\b|poultry|nugge|nuges|tenders?\b/.test(lower)) add("poultry_leg");
-  if (/squid|calamar|inktvis/.test(lower)) { add("squid"); add("shrimp"); }
-  if (/octopus|pulpo|polpo/.test(lower)) add("octopus");
-  if (/prosciutto|parma|serrano|\bham\b|\bhesp\b/.test(lower)) add("bacon");
-  if (/fish|salmon|tuna|cod|zalm|tonijn|kabeljauw|vis\b/.test(lower)) add("fish");
-  if (/shrimp|prawn|garnaal|gambas|scampi/.test(lower)) add("shrimp");
-  if (/egg|omelet|^ei|\beieren\b/.test(lower)) add("fried_egg");
-  if (/kroket|croquette|bitterbal/.test(lower)) add("fried_shrimp");
-  if (/dumpling|gyoza|ravio|tortelli/.test(lower)) add("dumpling");
-  if (/edamame|soy ?bean/.test(lower)) add("seedling");
-  if (/\bdragon\b/.test(lower)) add("dragon");
-  if (/avocado|guacamole/.test(lower)) add("avocado");
-  if (/curry|tikka|masala/.test(lower)) add("curry");
-  if (/rice|risotto|paella|nasi|rijst/.test(lower)) add("rice");
-  if (/pannenkoek|pancake|crepe|crêpe|wafel|waffle/.test(lower)) add("pancakes");
-  if (/coffee|cappuc|espresso|latte|koffie/.test(lower)) add("coffee");
-  if (/ice ?cream|sorbet|sundae|ijs\b/.test(lower)) add("ice_cream");
-  if (/dessert|tiramis|panna|gelato|cake|brownie|gebak|taart|mochi|baklava|churro|gulab/.test(lower)) {
-    // Fan-out pool: menus often carry 2-3 desserts; without it the second one
-    // exhausts "cake" and lands on a numbered badge.
-    for (const e of ["cake", "ice_cream", "doughnut", "chocolate_bar", "pie", "honey_pot"]) add(e);
-  }
-
-  // ---- Dish-family generics. These are the "if nothing more specific
-  // matched" emoji for the whole category. Note we add fries BEFORE pizza so
-  // "Friet speciaal" doesn't accidentally inherit pizza if we ever broaden.
-  if (/fries|frites|friet|frieten|patat|kapsalon/.test(lower)) add("fries");
-  if (/burger|cheeseburger|hamburger|bicky|smash/.test(lower)) add("hamburger");
-  if (/kebab|kebap|döner|doner|dürüm|durum|shawarma|gyros/.test(lower)) add("meat_on_bone");
-  if (/hotdog|hot dog|sausage|cervela|cervelat|frikandel|worst|saucisse|bratwurst/.test(lower)) add("hotdog");
-  if (/pizza|calzone/.test(lower)) add("pizza");
-  if (/pasta|spaghet|tagliat|gnocch|penne|fettuc/.test(lower)) add("spaghetti");
-  if (/lasagn|quiche|tart/.test(lower)) add("pie");
-  if (/sushi|sashimi|maki|nigiri/.test(lower)) add("sushi");
-  if (/ramen|noodle|pho|udon|noedel/.test(lower)) add("ramen");
-  if (/taco|burrito|enchilada|nacho|wrap/.test(lower)) add("taco");
-  if (/sandwich|panini|bagel|broodje|sub\b/.test(lower)) add("sandwich");
-  if (/bread|baguette|focaccia|naan|brood\b|stokbrood/.test(lower)) add("bread");
-  if (/menu|combo|deal|formule|schotel/.test(lower)) add("bento");
-  // Drinks — specific first, so a menu with several drinks fans out over
-  // distinct emojis instead of collapsing onto one and falling to numbers.
-  if (/red ?bull|energiedrank|energy ?drink|monster|nalu/.test(lower)) add("zap");
-  if (/ice ?-?tea|icetea|ijsthee|lipton/.test(lower)) { add("bubble_tea"); add("lemon"); }
-  else if (/\btea\b|\bthee\b|matcha|chai/.test(lower)) add("tea");
-  if (/coca|cola|pepsi|sprite|fanta|soda|frisdrank|limonade/.test(lower)) add("cup_with_straw");
-  if (/juice|smoothie|\bsap\b|fruitsap|appelsap|sinaasappelsap/.test(lower)) add("beverage_box");
-  if (/milkshake|\bmilk\b|\bmelk\b|lassi|ayran/.test(lower)) add("glass_of_milk");
-  if (/\bwater\b|\bspa\b|bruiswater|sparkling|chaudfontaine/.test(lower)) add("droplet");
-  if (/\bbeer\b|\bbier\b|jupiler|stella|duvel|\bpils\b/.test(lower)) add("beer");
-  if (/\bwine\b|\bwijn\b|prosecco|\bcava\b|sangria/.test(lower)) add("wine_glass");
-  if (/drink|drank|\bblik\b|\bcan\b|\bml\b|\bcl\b/.test(lower)) {
-    for (const e of ["cup_with_straw", "beverage_box", "tropical_drink", "bubble_tea", "lemon", "glass_of_milk"]) add(e);
-  }
-
-  // ---- Family decoratives. When several dishes of the same family appear
-  // and the family's primary emoji is already taken (e.g. five plain pizzas
-  // with no topping signal), these expand the fallback pool with on-theme
-  // emojis instead of numbered badges. Order = preferred-when-needed.
-  if (/pizza|calzone/.test(lower)) {
-    for (const e of ["tomato", "cheese_wedge", "mushroom", "hot_pepper", "pineapple", "onion", "herb", "spaghetti", "bacon", "fish", "shrimp", "poultry_leg", "leafy_green"]) add(e);
-  }
-  if (/burger|cheeseburger|hamburger|bicky|smash/.test(lower)) {
-    for (const e of ["cheese_wedge", "bacon", "sandwich", "leafy_green", "tomato", "onion", "poultry_leg"]) add(e);
-  }
-  if (/kebab|kebap|döner|doner|dürüm|durum|shawarma|gyros/.test(lower)) {
-    for (const e of ["stuffed_flatbread", "cut_of_meat", "poultry_leg", "hot_pepper", "sandwich", "onion", "tomato"]) add(e);
-  }
-  if (/pasta|spaghet|tagliat|gnocch|penne|fettuc/.test(lower)) {
-    for (const e of ["spaghetti", "tomato", "cheese_wedge", "mushroom", "bacon", "herb", "shrimp"]) add(e);
-  }
-  if (/sushi|sashimi|maki|nigiri|california|philadelphia|tempura|\broll\b/.test(lower)) {
-    for (const e of ["sushi", "fish", "shrimp", "rice_ball", "rice", "takeout_box", "dumpling"]) add(e);
-  }
-  if (/burrito|taco|enchilada|nacho|wrap/.test(lower)) {
-    for (const e of ["taco", "burrito", "hot_pepper", "cheese_wedge", "leafy_green"]) add(e);
-  }
-  if (/fries|frites|friet|frieten|patat|kapsalon/.test(lower)) {
-    for (const e of ["fries", "hotdog", "cheese_wedge", "bacon", "corn"]) add(e);
-  }
-  if (/broodje|sandwich|panini|baguette/.test(lower)) {
-    for (const e of ["sandwich", "bread", "cheese_wedge", "bacon", "poultry_leg", "leafy_green"]) add(e);
-  }
-  if (/hotdog|sausage|cervela|cervelat|frikandel|worst|saucisse|bratwurst/.test(lower)) {
-    for (const e of ["hotdog", "meat_on_bone", "cut_of_meat", "bacon", "bread"]) add(e);
-  }
-  if (/chicken|wing|poulet|kip\b|poultry/.test(lower)) {
-    for (const e of ["poultry_leg", "meat_on_bone", "cut_of_meat", "bacon"]) add(e);
-  }
-  if (/salad|salade|sla\b|bowl|poké|poke/.test(lower)) {
-    for (const e of ["leafy_green", "herb", "tomato", "cucumber", "avocado", "shrimp"]) add(e);
-  }
-
-  // Universal final fallback so we never return an empty list.
-  add("pie");
-  return prefs;
-}
-
 async function resetBrowser() {
   if (cachedBrowser) {
     try { await cachedBrowser.close(); } catch {}
@@ -312,7 +176,7 @@ async function scrapeListingsOnce(
       deliveryFee: number | null;
       minOrder: number | null;
       text: string;
-    }> = await page.evaluate((scanLimit: number) => {
+    }> = await page.evaluate(({ scanLimit, locale }: { scanLimit: number; locale: string }) => {
       // @ts-ignore — esbuild (tsx) emits __name() calls for named arrows; shim in the browser.
       if (typeof (globalThis as any).__name !== "function") (globalThis as any).__name = (fn: any) => fn;
       // Locale-agnostic on purpose: this runs in the browser context where the
@@ -377,7 +241,7 @@ async function scrapeListingsOnce(
         });
       }
       return result;
-    }, scanLimit);
+    }, { scanLimit, locale: LOCALE });
 
     // Category filter: match against name + cuisine + body text. If the
     // filter rejects everything, fall back silently to the unfiltered top

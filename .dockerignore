@@ -1,0 +1,11 @@
+node_modules
+.git
+.env
+.env.local
+state/*.json
+state/cache
+state/debug-checkout
+docs/*.pdf
+docs/screenshots/*.png
+*.log
+.DS_Store

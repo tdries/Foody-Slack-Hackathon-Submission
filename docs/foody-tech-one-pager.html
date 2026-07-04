@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Foody — Technical Overview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --red:#E23B2E; --green:#2EB67D; --yellow:#ECB22E; --blue:#36C5F0;
+    --bg:#F6F5F1; --surface:#FFFFFF; --ink:#2D2D2D; --ink-soft:#5B5B5B; --line:#E4E2DB;
+    --display:"Poppins","Inter",system-ui,sans-serif;
+    --body:"Inter",-apple-system,"Segoe UI",system-ui,sans-serif;
+    --mono:"JetBrains Mono",ui-monospace,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{background:#cfcfca}
+  body{font-family:var(--body);color:var(--ink);-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+
+  .page{
+    width:210mm;height:297mm;margin:0 auto;background:var(--bg);
+    position:relative;overflow:hidden;display:flex;flex-direction:column;
+    padding:13mm 13mm 10mm;
+  }
+  @page{size:A4;margin:0}
+  .page::before{content:"";position:absolute;top:-60mm;right:-55mm;width:115mm;height:115mm;border-radius:50%;
+    background:radial-gradient(circle at center, rgba(54,197,240,.10), rgba(54,197,240,0) 70%);}
+  .page::after{content:"";position:absolute;bottom:-55mm;left:-55mm;width:105mm;height:105mm;border-radius:50%;
+    background:radial-gradient(circle at center, rgba(46,182,125,.09), rgba(46,182,125,0) 70%);}
+
+  /* header */
+  header{display:flex;align-items:center;gap:13px;position:relative;z-index:2}
+  .mark{width:48px;height:48px;flex:0 0 auto}
+  .brand h1{font-family:var(--display);font-weight:800;font-size:29px;letter-spacing:-1px;line-height:1}
+  .brand .tag{font-family:var(--display);font-weight:600;color:var(--ink-soft);font-size:12px;margin-top:3px}
+  .pill{margin-left:auto;background:var(--ink);border-radius:999px;
+    padding:8px 16px;font-family:var(--display);font-weight:600;font-size:11.5px;color:#fff;}
+  .pill b{color:var(--yellow)}
+
+  .lead{margin-top:16px;position:relative;z-index:2}
+  .lead .kicker{font-family:var(--display);font-weight:700;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--blue)}
+  .lead h2{font-family:var(--display);font-weight:800;font-size:21px;line-height:1.2;letter-spacing:-.3px;margin-top:6px;max-width:180mm}
+  .lead p{font-size:12px;line-height:1.55;color:var(--ink-soft);margin-top:8px;max-width:185mm}
+  .lead code{font-family:var(--mono);font-size:11px;background:#fff;border:1px solid var(--line);border-radius:5px;padding:1px 5px;color:var(--ink)}
+
+  /* pipeline */
+  .secttl{font-family:var(--display);font-weight:700;font-size:12px;letter-spacing:.5px;text-transform:uppercase;
+    color:var(--ink-soft);margin:18px 0 9px;position:relative;z-index:2;display:flex;align-items:center;gap:8px}
+  .secttl::after{content:"";flex:1;height:1px;background:var(--line)}
+
+  .flow{display:flex;align-items:stretch;gap:0;position:relative;z-index:2}
+  .stage{flex:1;background:var(--surface);border:1px solid var(--line);border-radius:11px;padding:10px 9px;
+    box-shadow:0 1px 2px rgba(0,0,0,.05),0 3px 9px rgba(0,0,0,.04);position:relative}
+  .arrow{flex:0 0 16px;display:flex;align-items:center;justify-content:center;color:var(--line);font-size:15px;font-weight:700}
+  .stage .top{display:flex;align-items:center;gap:6px}
+  .stage .ix{width:18px;height:18px;border-radius:999px;color:#fff;font-family:var(--display);font-weight:700;
+    font-size:10px;display:flex;align-items:center;justify-content:center;flex:0 0 auto}
+  .stage h3{font-family:var(--display);font-weight:700;font-size:11px;line-height:1.1}
+  .stage p{font-size:9px;line-height:1.4;color:var(--ink-soft);margin-top:5px}
+  .stage .file{font-family:var(--mono);font-size:8px;color:var(--blue);margin-top:6px;display:block}
+  .c1{background:var(--red)} .c2{background:var(--yellow)} .c3{background:var(--blue)}
+  .c4{background:var(--green)} .c5{background:var(--ink)} .c6{background:var(--red)}
+
+  /* two-column body */
+  .cols{display:grid;grid-template-columns:1fr 1fr;gap:13px;margin-top:6px;position:relative;z-index:2}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:13px;padding:14px 16px;
+    box-shadow:0 1px 2px rgba(0,0,0,.05),0 4px 12px rgba(0,0,0,.04)}
+  .card h4{font-family:var(--display);font-weight:700;font-size:13.5px;margin-bottom:10px;display:flex;align-items:center;gap:8px}
+  .card h4 .dot{width:10px;height:10px;border-radius:3px;display:inline-block}
+
+  .comp{display:flex;gap:9px;margin-bottom:9px}
+  .comp:last-child{margin-bottom:0}
+  .comp .fn{font-family:var(--mono);font-size:9.5px;font-weight:600;color:var(--ink);background:var(--bg);
+    border:1px solid var(--line);border-radius:5px;padding:2px 6px;flex:0 0 auto;height:fit-content;min-width:74px;text-align:center}
+  .comp .d{font-size:10.5px;line-height:1.42;color:var(--ink-soft)}
+  .comp .d b{font-family:var(--display);font-weight:600;color:var(--ink)}
+
+  .note{display:flex;gap:9px;margin-bottom:10px}
+  .note:last-child{margin-bottom:0}
+  .note .ic{font-size:14px;flex:0 0 auto;line-height:1.3}
+  .note b{font-family:var(--display);font-weight:600;font-size:11.5px}
+  .note span{display:block;font-size:10.5px;line-height:1.45;color:var(--ink-soft);margin-top:1px}
+
+  /* stack band */
+  .stack{margin-top:13px;position:relative;z-index:2;background:var(--ink);border-radius:14px;padding:13px 18px;
+    display:flex;align-items:center;gap:14px;color:#fff;flex-wrap:wrap}
+  .stack .lbl{font-family:var(--display);font-weight:700;font-size:11px;letter-spacing:.5px;text-transform:uppercase;color:rgba(255,255,255,.6)}
+  .stack .badge{font-family:var(--mono);font-size:10.5px;font-weight:600;background:rgba(255,255,255,.10);
+    border:1px solid rgba(255,255,255,.16);border-radius:999px;padding:5px 11px}
+  .stack .badge.g{color:var(--green)} .stack .badge.b{color:var(--blue)} .stack .badge.y{color:var(--yellow)}
+
+  .foot{display:flex;justify-content:space-between;align-items:center;margin-top:8px;
+    font-size:9.5px;color:var(--ink-soft);position:relative;z-index:2}
+  .foot .sep{color:var(--line)}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header>
+    <img class="mark" src="assets/foody-mark-tile.png" alt="Foody" style="border-radius:12px;object-fit:cover" />
+    <div class="brand">
+      <h1>Foody</h1>
+      <div class="tag">Work hard, skip hangry.</div>
+    </div>
+    <div class="pill">Technical overview · <b>how it works</b></div>
+  </header>
+
+  <section class="lead">
+    <div class="kicker">Deterministic · Slack-native · no LLM in the request path</div>
+    <h2>A small, predictable pipeline that turns a Slack message into a real takeaway.com basket.</h2>
+    <p>Foody is a <b>Bolt + Socket Mode</b> app — no public URL, nothing leaves the workspace. The intent layer is a list of phrase matchers, not a model, so a given input always does the same thing. State is plain JSON on disk; the live ground truth for the basket is the set of emoji reactions on the menu message itself. The only browser automation is at the very end, when Foody builds the real basket in <em>your</em> Chrome.</p>
+  </section>
+
+  <div class="secttl">The request pipeline</div>
+  <div class="flow">
+    <div class="stage"><div class="top"><span class="ix c1">1</span><h3>Trigger &amp; intent</h3></div><p>Phrase matchers catch “let's eat”, “order”, “change address”, “reset”.</p><span class="file">intent.ts</span></div>
+    <div class="arrow">→</div>
+    <div class="stage"><div class="top"><span class="ix c2">2</span><h3>Session state</h3></div><p>Sticky address per user + a live cart per Slack thread, as JSON.</p><span class="file">state.ts</span></div>
+    <div class="arrow">→</div>
+    <div class="stage"><div class="top"><span class="ix c3">3</span><h3>Discovery</h3></div><p>Top-3 restaurants &amp; top-10 dishes via headless scrape + TTL cache.</p><span class="file">takeaway.ts</span></div>
+    <div class="arrow">→</div>
+    <div class="stage"><div class="top"><span class="ix c4">4</span><h3>React &amp; reconcile</h3></div><p>Pre-reacted menu; cart rebuilt from the message's real reactions.</p><span class="file">app.ts</span></div>
+    <div class="arrow">→</div>
+    <div class="stage"><div class="top"><span class="ix c5">5</span><h3>Build &amp; pay</h3></div><p>Drives your Chrome over CDP to fill the basket; you confirm payment.</p><span class="file">checkout.ts</span></div>
+  </div>
+
+  <div class="secttl">Components</div>
+  <div class="cols">
+    <div class="card">
+      <h4><span class="dot" style="background:var(--blue)"></span>What each layer owns</h4>
+      <div class="comp"><span class="fn">app.ts</span><div class="d"><b>Slack plumbing.</b> Bolt over Socket Mode — message triggers, action buttons, reaction events, and every Block Kit post &amp; update.</div></div>
+      <div class="comp"><span class="fn">blocks.ts</span><div class="d"><b>Block Kit builders.</b> Restaurant cards, the menu+cart card, the animated build-progress card, the receipt.</div></div>
+      <div class="comp"><span class="fn">state.ts</span><div class="d"><b>Persistence.</b> JSON files keyed two ways: <code style="font-family:var(--mono);font-size:9px">addr_&lt;user&gt;</code> for the address book, <code style="font-family:var(--mono);font-size:9px">sess_&lt;chan&gt;_&lt;thread&gt;</code> for the live cart.</div></div>
+      <div class="comp"><span class="fn">takeaway.ts</span><div class="d"><b>Data + caching.</b> Restaurant/dish lookup, in-memory + 24 h disk TTL cache, with a daily background prewarm.</div></div>
+      <div class="comp"><span class="fn">checkout.ts</span><div class="d"><b>Basket build.</b> Connects to your running Chrome via the DevTools Protocol and adds each dish in a background tab.</div></div>
+    </div>
+
+    <div class="card">
+      <h4><span class="dot" style="background:var(--green)"></span>Engineering decisions</h4>
+      <div class="note"><div class="ic">🔌</div><div><b>Socket Mode, not webhooks</b><span>Runs behind your firewall over an outbound WebSocket — no public endpoint, no inbound exposure.</span></div></div>
+      <div class="note"><div class="ic">🧭</div><div><b>Reactions are the source of truth</b><span>The cart is reconciled from the live reactions on the message, so a dropped socket event never desyncs the basket — it self-heals.</span></div></div>
+      <div class="note"><div class="ic">📸</div><div><b>Self-contained sessions</b><span>The picked restaurant + menu are snapshotted into state, so a restart mid-order still completes checkout.</span></div></div>
+      <div class="note"><div class="ic">🕷️</div><div><b>Two browsers, on purpose</b><span>A stealth headless browser scrapes listings; checkout attaches to <em>your</em> Chrome so the basket sits in your signed-in, Cloudflare-cleared session.</span></div></div>
+    </div>
+  </div>
+
+  <div class="stack">
+    <span class="lbl">Stack</span>
+    <span class="badge b">TypeScript</span>
+    <span class="badge">@slack/bolt · Socket Mode</span>
+    <span class="badge g">Node.js</span>
+    <span class="badge">Puppeteer + stealth</span>
+    <span class="badge y">JSON disk cache (TTL)</span>
+    <span class="badge">Block Kit</span>
+  </div>
+
+  <div class="foot">
+    <span>Foody · technical overview</span>
+    <span class="sep">———</span>
+    <span>Deterministic code, not a chatbot · Work hard, skip hangry.</span>
+  </div>
+
+</div>
+</body>
+</html>

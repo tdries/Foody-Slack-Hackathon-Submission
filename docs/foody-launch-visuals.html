@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Foody launch visuals</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --red:#E23B2E; --green:#2EB67D; --yellow:#ECB22E; --blue:#36C5F0;
+    --dark:#1A1D21; --dark2:#202327; --soft:#9A9B9D; --line:#33363B;
+    --display:"Poppins","Inter",system-ui,sans-serif;
+    --body:"Inter",system-ui,sans-serif; --mono:"JetBrains Mono",monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#cfcfca;font-family:var(--body);-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .stage{margin:24px auto;display:block}
+
+  /* ============ HERO COVER 1600x900 ============ */
+  #hero{width:1600px;height:900px;background:var(--dark);position:relative;overflow:hidden;
+    display:flex;align-items:center;padding:0 88px;color:#fff}
+  #hero .glow1{position:absolute;top:-220px;right:-160px;width:760px;height:760px;border-radius:50%;
+    background:radial-gradient(circle at center, rgba(54,197,240,.18), rgba(54,197,240,0) 68%)}
+  #hero .glow2{position:absolute;bottom:-260px;left:-180px;width:760px;height:760px;border-radius:50%;
+    background:radial-gradient(circle at center, rgba(46,182,125,.16), rgba(46,182,125,0) 68%)}
+  #hero .glow3{position:absolute;bottom:-160px;right:240px;width:520px;height:520px;border-radius:50%;
+    background:radial-gradient(circle at center, rgba(226,59,46,.10), rgba(226,59,46,0) 70%)}
+  #hero .left{position:relative;z-index:3;width:830px}
+  #hero .brandrow{display:flex;align-items:center;gap:22px}
+  #hero .mark{width:104px;height:104px;border-radius:22px;box-shadow:0 10px 26px rgba(0,0,0,.5);display:block;object-fit:cover}
+  #hero h1{font-family:var(--display);font-weight:800;font-size:82px;letter-spacing:-2px;line-height:1}
+  #hero .tag{font-family:var(--display);font-weight:600;font-size:21px;color:var(--soft);margin-top:6px}
+  #hero h2{font-family:var(--display);font-weight:800;font-size:52px;line-height:1.1;letter-spacing:-1.2px;margin-top:40px}
+  #hero h2 .em{color:var(--yellow)}
+  #hero .sub{font-size:23px;line-height:1.5;color:#D7D8DA;margin-top:22px;max-width:740px}
+  #hero .sub b{color:#fff}
+  #hero .badges{display:flex;gap:13px;margin-top:34px}
+  #hero .badge{font-family:var(--display);font-weight:600;font-size:15px;border:1px solid var(--line);border-radius:999px;padding:12px 20px;color:#CFD0D1}
+  #hero .badge.solid{background:var(--green);border-color:var(--green);color:#fff}
+  #hero .foot{position:absolute;left:88px;bottom:46px;z-index:3;font-family:var(--mono);font-size:15px;color:var(--soft)}
+  #hero .right{position:absolute;right:-40px;top:50%;transform:translateY(-50%) rotate(-4deg);z-index:2;width:760px}
+  #hero .wincard{background:var(--dark2);border:1px solid var(--line);border-radius:20px;overflow:hidden;
+    box-shadow:0 40px 90px rgba(0,0,0,.55)}
+  #hero .winbar{display:flex;gap:9px;padding:16px 20px;background:#26282c;border-bottom:1px solid var(--line)}
+  #hero .winbar i{width:14px;height:14px;border-radius:50%;display:block}
+  #hero .winbar i:nth-child(1){background:var(--red)} #hero .winbar i:nth-child(2){background:var(--yellow)} #hero .winbar i:nth-child(3){background:var(--green)}
+  #hero .wincard img{display:block;width:100%;height:auto}
+
+  /* ============ OG / SOCIAL CARD 1200x630 ============ */
+  #og{width:1200px;height:630px;background:var(--dark);position:relative;overflow:hidden;color:#fff;
+    display:flex;flex-direction:column;justify-content:center;padding:0 76px}
+  #og .glow1{position:absolute;top:-180px;right:-120px;width:560px;height:560px;border-radius:50%;
+    background:radial-gradient(circle at center, rgba(54,197,240,.20), rgba(54,197,240,0) 66%)}
+  #og .glow2{position:absolute;bottom:-200px;left:-140px;width:560px;height:560px;border-radius:50%;
+    background:radial-gradient(circle at center, rgba(46,182,125,.18), rgba(46,182,125,0) 66%)}
+  #og .row{display:flex;align-items:center;gap:20px;position:relative;z-index:2}
+  #og .mark{width:88px;height:88px;border-radius:18px;box-shadow:0 8px 22px rgba(0,0,0,.5);object-fit:cover}
+  #og h1{font-family:var(--display);font-weight:800;font-size:66px;letter-spacing:-1.5px;line-height:1}
+  #og .tag{font-family:var(--display);font-weight:600;font-size:17px;color:var(--soft);margin-top:4px}
+  #og h2{font-family:var(--display);font-weight:800;font-size:46px;line-height:1.14;letter-spacing:-1px;margin-top:30px;position:relative;z-index:2;max-width:1000px}
+  #og h2 .em{color:var(--yellow)}
+  #og .sub{font-size:21px;color:#D7D8DA;margin-top:16px;position:relative;z-index:2;max-width:920px;line-height:1.45}
+  #og .strip{position:absolute;left:0;bottom:0;height:12px;width:100%;display:flex}
+  #og .strip i{flex:1;display:block} #og .strip i:nth-child(1){background:var(--red)} #og .strip i:nth-child(2){background:var(--yellow)} #og .strip i:nth-child(3){background:var(--blue)} #og .strip i:nth-child(4){background:var(--green)}
+  #og .cta{position:absolute;right:76px;bottom:48px;z-index:2;display:flex;align-items:center;gap:12px}
+  #og .cta .play{background:var(--green);color:#fff;font-family:var(--display);font-weight:700;font-size:18px;padding:14px 24px;border-radius:999px}
+  #og .ftxt{position:absolute;left:76px;bottom:48px;z-index:2;font-family:var(--mono);font-size:15px;color:var(--soft)}
+</style>
+</head>
+<body>
+
+<!-- HERO 1600x900 -->
+<div id="hero" class="stage">
+  <div class="glow1"></div><div class="glow2"></div><div class="glow3"></div>
+  <div class="left">
+    <div class="brandrow">
+      <img class="mark" src="assets/foody-mark-tile.png" alt="Foody">
+      <div><h1>Foody</h1><div class="tag">Work hard, skip hangry.</div></div>
+    </div>
+    <h2>Your team orders lunch<br>by tapping <span class="em">emoji.</span></h2>
+    <div class="sub">A group food-ordering agent that lives <b>entirely inside Slack</b>. Someone types <b>“let's eat something”</b> — the whole team reacts to build one shared basket, and Foody places the order.</div>
+    <div class="badges">
+      <div class="badge solid">Slack Agent Builder Challenge</div>
+      <div class="badge">New Slack Agent</div>
+      <div class="badge">No app · no links · no spreadsheet</div>
+    </div>
+  </div>
+  <div class="foot">github.com/tdries/Foody-Slack-Hackathon-Submission &nbsp;·&nbsp; ▶ 60-second demo</div>
+  <div class="right">
+    <div class="wincard">
+      <div class="winbar"><i></i><i></i><i></i></div>
+      <img src="screenshots/04-menu-cart.png" alt="Foody shared cart in Slack">
+    </div>
+  </div>
+</div>
+
+<!-- OG 1200x630 -->
+<div id="og" class="stage">
+  <div class="glow1"></div><div class="glow2"></div>
+  <div class="row">
+    <img class="mark" src="assets/foody-mark-tile.png" alt="Foody">
+    <div><h1>Foody</h1><div class="tag">Work hard, skip hangry.</div></div>
+  </div>
+  <h2>Group food ordering, <span class="em">by emoji.</span></h2>
+  <div class="sub">The whole team orders lunch together in Slack — without leaving the channel. Built for the Slack Agent Builder Challenge.</div>
+  <div class="ftxt">github.com/tdries/Foody-Slack-Hackathon-Submission</div>
+  <div class="cta"><span class="play">▶ Watch the demo</span></div>
+  <div class="strip"><i></i><i></i><i></i><i></i></div>
+</div>
+
+</body>
+</html>

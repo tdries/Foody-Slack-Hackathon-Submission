@@ -1,6 +1,7 @@
 import { readFileSync, existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { emojiPrefsFor } from "./emojis.ts";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = join(__dirname, "..", "data");
@@ -99,6 +100,12 @@ function loadData(): DataFile {
   // fetchable by Slack's image proxy, which is all photo view needs.
   const IMG_BASE = "https://raw.githubusercontent.com/tdries/Foody-Slack-Hackathon-Submission/main/data/dish-images";
   for (const d of merged.dishes) {
+    // Static mock/real dishes ship with only a single `slackEmoji`; derive the
+    // rich, dish-specific preference list (same logic the live scraper uses) so
+    // demo mode renders meaningful, distinct emojis instead of numbered badges.
+    if (!d.slackEmojiPrefs || d.slackEmojiPrefs.length === 0) {
+      d.slackEmojiPrefs = emojiPrefsFor(d.category ?? null, d.name);
+    }
     const entry = manifest[d.id];
     if (!entry) continue;
     if (uploaded[entry.slug]) d.customEmoji = `foody_${entry.slug}`;
@@ -207,6 +214,21 @@ export async function getRestaurant(id: string): Promise<Restaurant | null> {
   }
   const data = loadData();
   return data.restaurants.find((r) => r.id === id) ?? null;
+}
+
+/**
+ * Re-seed the in-memory live cache with a restaurant we already hold (e.g. a
+ * snapshot restored from a session after a restart). Lets getRestaurant /
+ * getTopDishes resolve it by id again without a re-scrape, so a pick made
+ * before the restart still works.
+ */
+export function primeRestaurant(restaurant: Restaurant): void {
+  const key = `__primed__`;
+  const list = liveListingsCache.get(key) ?? [];
+  if (!list.some((r) => r.id === restaurant.id)) {
+    list.push(restaurant);
+    liveListingsCache.set(key, list);
+  }
 }
 
 export async function getTopDishes(restaurantId: string, limit = 10): Promise<Dish[]> {

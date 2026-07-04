@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Foody — Deploy to your workspace</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --red:#E23B2E; --green:#2EB67D; --yellow:#ECB22E; --blue:#36C5F0;
+    --bg:#F6F5F1; --surface:#FFFFFF; --ink:#2D2D2D; --ink-soft:#5B5B5B; --line:#E4E2DB;
+    --code-bg:#1A1D21; --code-ink:#D9DBDE; --code-dim:#8B8E93;
+    --display:"Poppins","Inter",system-ui,sans-serif;
+    --body:"Inter",-apple-system,"Segoe UI",system-ui,sans-serif;
+    --mono:"JetBrains Mono",ui-monospace,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{background:#cfcfca}
+  body{font-family:var(--body);color:var(--ink);-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .page{width:210mm;height:297mm;margin:0 auto;background:var(--bg);position:relative;overflow:hidden;
+    display:flex;flex-direction:column;padding:11mm 12mm 9mm}
+  @page{size:A4;margin:0}
+  .page::before{content:"";position:absolute;top:-55mm;right:-55mm;width:110mm;height:110mm;border-radius:50%;
+    background:radial-gradient(circle at center, rgba(54,197,240,.10), rgba(54,197,240,0) 70%)}
+  .page::after{content:"";position:absolute;bottom:-50mm;left:-52mm;width:105mm;height:105mm;border-radius:50%;
+    background:radial-gradient(circle at center, rgba(46,182,125,.09), rgba(46,182,125,0) 70%)}
+
+  header{display:flex;align-items:center;gap:13px;position:relative;z-index:2}
+  .mark{width:48px;height:48px;flex:0 0 auto}
+  .brand h1{font-family:var(--display);font-weight:800;font-size:27px;letter-spacing:-1px;line-height:1}
+  .brand .tag{font-family:var(--display);font-weight:600;color:var(--ink-soft);font-size:11.5px;margin-top:3px}
+  .pill{margin-left:auto;background:var(--surface);border:1px solid var(--line);border-radius:999px;
+    padding:7px 14px;font-family:var(--display);font-weight:600;font-size:11px;color:var(--ink-soft);
+    box-shadow:0 1px 2px rgba(0,0,0,.05)}
+  .pill b{color:var(--ink)}
+
+  .lead{margin-top:10px;position:relative;z-index:2}
+  .lead .kicker{font-family:var(--display);font-weight:700;font-size:10.5px;letter-spacing:1.5px;text-transform:uppercase;color:var(--blue)}
+  .lead h2{font-family:var(--display);font-weight:800;font-size:17px;line-height:1.25;letter-spacing:-.3px;margin-top:4px}
+  .lead h2 .repo{font-family:var(--mono);font-weight:500;font-size:13px;background:var(--ink);color:#fff;padding:2px 8px;border-radius:6px;white-space:nowrap}
+
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:8px 10px;margin-top:10px;position:relative;z-index:2}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:11px;padding:9px 11px 10px;
+    box-shadow:0 1px 2px rgba(0,0,0,.05),0 4px 10px rgba(0,0,0,.04);display:flex;flex-direction:column}
+  .top{display:flex;align-items:center;gap:8px}
+  .n{width:22px;height:22px;border-radius:999px;display:flex;align-items:center;justify-content:center;
+    font-family:var(--display);font-weight:700;font-size:11.5px;color:#fff;flex:0 0 auto}
+  .card:nth-child(1) .n{background:var(--red)} .card:nth-child(2) .n{background:var(--yellow)}
+  .card:nth-child(3) .n{background:var(--blue)} .card:nth-child(4) .n{background:var(--green)}
+  .card:nth-child(5) .n{background:var(--ink)} .card:nth-child(6) .n{background:var(--red)}
+  .top h3{font-family:var(--display);font-weight:700;font-size:13px;line-height:1.15}
+  .card p{font-size:10px;line-height:1.42;color:var(--ink-soft);margin:5px 0 0}
+  .card p code,.inl{font-family:var(--mono);font-size:9.5px;background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:1px 4px;color:var(--ink)}
+  .card p b{color:var(--ink)}
+  pre{margin-top:7px;background:var(--code-bg);color:var(--code-ink);border-radius:7px;padding:8px 10px;
+    font-family:var(--mono);font-size:9.3px;line-height:1.55;white-space:pre-wrap;word-break:break-word}
+  pre .c{color:var(--code-dim)} pre .k{color:#7Fd6c2} pre .y{color:var(--yellow)}
+
+  .refs{display:grid;grid-template-columns:1.15fr 1fr;gap:10px;margin-top:9px;position:relative;z-index:2}
+  .ref{background:var(--surface);border:1px solid var(--line);border-radius:11px;padding:9px 11px}
+  .ref h4{font-family:var(--display);font-weight:700;font-size:11.5px;display:flex;align-items:center;gap:6px}
+  .ref h4::before{content:"";width:8px;height:8px;border-radius:2px;background:var(--blue)}
+  .ref.scopes h4::before{background:var(--green)}
+  .ref .row{font-size:9.3px;line-height:1.5;color:var(--ink-soft);margin-top:5px}
+  .ref .row b{color:var(--ink);font-family:var(--mono);font-weight:500}
+  .tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+  .tag2{font-family:var(--mono);font-size:8.6px;background:var(--bg);border:1px solid var(--line);border-radius:5px;padding:2px 6px;color:var(--ink-soft)}
+  .warn{margin-top:6px;font-size:9.3px;line-height:1.45;color:var(--ink-soft);border-left:3px solid var(--yellow);padding-left:8px}
+  .warn b{color:var(--ink)}
+
+  .cta{margin-top:9px;position:relative;z-index:2;background:var(--ink);border-radius:13px;
+    padding:11px 18px;display:flex;align-items:center;gap:14px;color:#fff}
+  .cta .barbar{display:flex;gap:5px;flex:0 0 auto}
+  .cta .barbar i{width:6px;height:24px;border-radius:999px;display:block}
+  .cta h5{font-family:var(--display);font-weight:700;font-size:13.5px;line-height:1.2}
+  .cta p{font-size:9.8px;color:rgba(255,255,255,.72);margin-top:2px}
+  .cta p b{color:#fff;font-family:var(--mono);font-weight:500}
+  .cta .go{margin-left:auto;background:var(--green);color:#fff;font-family:var(--mono);font-weight:500;
+    font-size:10.5px;padding:9px 14px;border-radius:999px;white-space:nowrap}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header>
+    <img class="mark" src="assets/foody-mark-tile.png" alt="Foody" style="border-radius:12px;object-fit:cover" />
+    <div class="brand">
+      <h1>Deploy Foody to your workspace</h1>
+      <div class="tag">Work hard, skip hangry. · self-host guide</div>
+    </div>
+    <div class="pill">Socket Mode · no public URL · ~5 min</div>
+  </header>
+
+  <div class="lead">
+    <div class="kicker">For engineers · clone → manifest → 3 tokens → run</div>
+    <h2>Run your own Foody from the repo &nbsp;<span class="repo">github.com/tdries/Foody-Slack-Hackathon-Submission</span></h2>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <div class="top"><span class="n">1</span><h3>Clone &amp; install</h3></div>
+      <p>Node 22+. No build step — it runs TypeScript directly via <code>tsx</code>.</p>
+<pre><span class="c"># Node 22+</span>
+git clone https://github.com/tdries/\
+  Foody-Slack-Hackathon-Submission.git
+cd Foody-Slack-Hackathon-Submission
+npm install
+cp .env.example .env</pre>
+    </div>
+
+    <div class="card">
+      <div class="top"><span class="n">2</span><h3>Create the Slack app</h3></div>
+      <p>Build it from the bundled manifest — every scope, event &amp; Socket-Mode setting is pre-declared.</p>
+<pre><span class="c"># api.slack.com/apps → Create New App</span>
+<span class="k">From a manifest</span> → pick your workspace
+paste <span class="y">docs/slack-manifest.yml</span>
+→ Create → <span class="k">Install to Workspace</span></pre>
+    </div>
+
+    <div class="card">
+      <div class="top"><span class="n">3</span><h3>Grab three tokens</h3></div>
+      <p>Copy each into <code>.env</code>. Confirm <b>Socket Mode = On</b> (the manifest sets it).</p>
+<pre><span class="c"># OAuth &amp; Permissions</span>
+SLACK_BOT_TOKEN=<span class="y">xoxb-…</span>
+<span class="c"># Basic Info → App-Level Tokens (connections:write)</span>
+SLACK_APP_TOKEN=<span class="y">xapp-…</span>
+<span class="c"># Basic Info → Signing Secret</span>
+SLACK_SIGNING_SECRET=<span class="y">…</span></pre>
+    </div>
+
+    <div class="card">
+      <div class="top"><span class="n">4</span><h3>Configure runtime</h3></div>
+      <p>For a server, set <code>FOODY_DISABLE_LIVE=1</code> — deterministic mock data, no scraping, no Chrome.</p>
+<pre>FOODY_DISABLE_LIVE=<span class="y">1</span>   <span class="c"># server-safe mock</span>
+FOODY_TAKEAWAY_LOCALE=be-en <span class="c"># or nl, …</span>
+FOODY_CHANNELS=         <span class="c"># C0…,C0…  empty=all</span>
+FOODY_LOG_LEVEL=info</pre>
+    </div>
+
+    <div class="card">
+      <div class="top"><span class="n">5</span><h3>Run &amp; invite</h3></div>
+      <p>Dials out to Slack over a WebSocket — nothing inbound. Then in a channel:</p>
+<pre>npm run start:demo   <span class="c"># mock, server-safe</span>
+<span class="c"># or: npm run dev:slack  (live + watch)</span>
+
+<span class="c">in Slack:</span>  /invite @Foody
+              <span class="k">let's eat something</span></pre>
+    </div>
+
+    <div class="card">
+      <div class="top"><span class="n">6</span><h3>Host it always-on</h3></div>
+      <p>Ships with a <code>Dockerfile</code> + <code>render.yaml</code>. Deploy as a <b>background worker</b> (no port).</p>
+<pre><span class="c"># Render: New → Blueprint → this repo</span>
+<span class="c"># set the 3 SLACK_* secrets in dashboard</span>
+docker build -t foody . &amp;&amp; \
+docker run --env-file .env foody</pre>
+    </div>
+  </div>
+
+  <div class="refs">
+    <div class="ref scopes">
+      <h4>Bot scopes &amp; events (from the manifest)</h4>
+      <div class="row"><b>chat:write</b> · post &amp; update Block Kit &nbsp;·&nbsp; <b>reactions:read/write</b> · pre-react + read the shared cart</div>
+      <div class="row"><b>channels/groups/im/mpim:history</b> · hear the trigger phrase &nbsp;·&nbsp; <b>users:read</b> · address-book greeting</div>
+      <div class="tags">
+        <span class="tag2">message.channels</span><span class="tag2">message.groups</span><span class="tag2">message.im</span>
+        <span class="tag2">message.mpim</span><span class="tag2">reaction_added</span><span class="tag2">reaction_removed</span>
+      </div>
+    </div>
+    <div class="ref">
+      <h4>Notes</h4>
+      <div class="warn"><b>Real takeaway.com checkout is opt-in.</b> Leave <span class="inl">FOODY_DISABLE_LIVE=1</span> for any hosted/shared instance — the live cart drives <i>your</i> signed-in Chrome over the DevTools port and is layout-sensitive. The Slack flow, shared cart &amp; receipt work fully on mock data.</div>
+      <div class="warn" style="border-color:var(--blue)"><b>Other markets:</b> any takeaway.com locale sharing the same DOM works via <span class="inl">FOODY_TAKEAWAY_LOCALE</span>. Just Eat / Lieferando / Uber Eats need their own adapter in <span class="inl">src/scrape-live.ts</span>.</div>
+    </div>
+  </div>
+
+  <div class="cta">
+    <div class="barbar"><i style="background:var(--red)"></i><i style="background:var(--yellow)"></i><i style="background:var(--blue)"></i><i style="background:var(--green)"></i></div>
+    <div>
+      <h5>No LLM, no webhooks, no public URL.</h5>
+      <p>Deterministic intent matching over Socket Mode · debug by hand: <b>npm run foody -- status &lt;user&gt;</b></p>
+    </div>
+    <div class="go">README.md · DEMO.md →</div>
+  </div>
+
+</div>
+</body>
+</html>

@@ -1,88 +1,194 @@
-# Foody
+<div align="center">
 
-A Slack-native group food-ordering bot that fronts takeaway.com.
+<img src="docs/assets/foody-banner.png" alt="Foody — Work hard, skip hangry" width="100%" />
 
-Someone in your channel types **"let's eat something"**, Foody picks up. It walks the thread through:
+&nbsp;
 
-1. **Address** — sticky per Slack user. Asked once, remembered forever, change with _"change address to ..."_.
-2. **Top 3 restaurants** near you — Block Kit cards, one click to open a menu.
-3. **Top 10 dishes** — posted as a single message. Foody pre-reacts with `🍕 🍔 🍟 🌮 🌯 🍣 🍜 🍱 🥗 🍝` so the whole team can **click to add** with one tap.
-4. **Shared cart** — anyone's reaction adds; unreacting removes. Cart summary posts after each change.
-5. **Order** — hit the green button. Receipt with totals and ETA lands in the thread.
+**A Slack-native group food-ordering agent that fronts Takeaway.com.**
 
-Or skip the phrase triggers entirely and just *talk to it* — see the AI assistant below.
+Someone in your channel types **“let's eat something.”** Foody picks up, runs the whole order as a conversation, and builds one shared basket from everyone's emoji reactions.
 
-## AI assistant (Slack AI capabilities) 🤖
+<br>
 
-Foody is a Slack **AI app**: it ships the split-pane assistant surface built on Slack's AI-apps platform (`assistant_view`, `Assistant` class in Bolt, suggested prompts, live status updates, thread context). Open Foody from the workspace's AI apps entry point and describe what you want in plain language:
+[![CI](https://github.com/tdries/Foody-Slack-Hackathon-Submission/actions/workflows/ci.yml/badge.svg)](https://github.com/tdries/Foody-Slack-Hackathon-Submission/actions/workflows/ci.yml)
+[![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](LICENSE)
+![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white)
+![Node.js](https://img.shields.io/badge/Node.js-22-339933?logo=node.js&logoColor=white)
+![Slack Bolt](https://img.shields.io/badge/Slack-Bolt%20·%20Socket%20Mode-4A154B?logo=slack&logoColor=white)
+![Puppeteer](https://img.shields.io/badge/Puppeteer-stealth-40B5A4?logo=puppeteer&logoColor=white)
+![No LLM](https://img.shields.io/badge/runtime-deterministic%20·%20no%20LLM-2EB67D)
 
-> *"Something spicy for 6 people under €15, we're at Veldstraat 1, 9000 Gent"*
+<br>
 
-The assistant (a Claude tool-use loop, [src/slack/assistant.ts](src/slack/assistant.ts)) maps free text onto Foody's deterministic machinery through four tools:
+### 👉 Try it live: **[join the demo Slack](https://join.slack.com/t/veritype-demo/shared_invite/zt-3z90xcqzk-H~q5ZZUV9eHT5fetkAse4A)**, open `#foody-demo`, and type *“let's eat something.”*  ·  full guide in **[DEMO.md](DEMO.md)**
 
-| Tool | What it does |
-|---|---|
-| `find_restaurants` | Top delivery spots near an address, optional cuisine filter |
-| `get_menu` | Top 10 dishes with prices — powers "is there something vegetarian under €12?" |
-| `save_default_address` | Updates the sticky per-user address book |
-| `start_group_order` | The handoff: posts the restaurant cards (or a menu with pre-reacted emojis) into the channel you opened the assistant from, where the classic reaction-cart flow takes over |
+<br>
 
-While it works you see live status ("*is scanning takeaway.com near Veldstraat 1…*"), and the end state of a conversation is a group order running in your channel — the AI plans, the team taps emojis, and nobody typed a search filter.
+<a href="https://www.youtube.com/watch?v=TJ0aVqwF8wQ"><img src="docs/assets/video-thumbnail.png" width="640" alt="▶ Watch the Foody demo (60 seconds)" /></a>
+
+</div>
+
+---
+
+## Why Foody
+
+Every team knows the thread. It's 12:14, someone posts *“lunch?”*, and twenty minutes vanish into scrolling menus, pasting links, copy-pasting orders into a DM, and one poor soul becoming the human spreadsheet who tallies it all and pays.
+
+The food is easy. The **coordination** is the tax.
+
+Foody removes it. The team is already in Slack, and Slack already has a universal, zero-learning-curve input device: the **emoji reaction**. So that's the entire interface. No app to install, no link to chase, no spreadsheet.
+
+---
+
+## The order flow
+
+> A real run, start to finish. Five messages, one shared basket, one tap to order.
+
+<div align="center">
+
+![Foody — group lunch ordering in Slack, from “let's eat something” to a placed order](docs/Foody-Demo.gif)
+
+</div>
+
+### 1 · Someone says “let's eat something”
+Foody greets the channel and confirms the delivery address. It's **sticky per Slack user** — asked once, remembered forever.
+
+![Greeting](docs/screenshots/01-greeting.png)
+
+### 2 · Pick a vibe
+Eight one-tap cuisine categories. Pick one (or skip straight to the top spots).
+
+![Category picker](docs/screenshots/02-category.png)
+
+### 3 · Top 3 restaurants near you
+Ranked and scored, each with rating, ETA, delivery fee and minimum — one tap to open the menu.
+
+![Top 3 restaurants](docs/screenshots/03-restaurants.png)
+
+### 4 · React to build a shared basket
+The top 10 dishes land as a **single live message** that Foody pre-reacts to. Anyone on the team taps an emoji to add a dish; un-reacting removes it. The running total updates in place for everyone.
+
+![Menu and shared cart](docs/screenshots/04-menu-cart.png)
+
+### 5 · One tap to order
+Hit the green button and Foody builds the basket on takeaway.com — with a live, self-animating progress card while it works.
+
+![Build progress](docs/screenshots/05-progress.png)
+
+### 6 · Done
+A clean receipt lands in the thread: items, totals, and an ETA.
+
+![Receipt](docs/screenshots/06-receipt.png)
+
+---
+
+## What makes it different
+
+- **🪄 The interface is just emoji.** No forms, no webview — group ordering is reactions on a message.
+- **🧭 Reactions are the source of truth.** The basket is reconciled from the *actual* reactions on the menu message, not a running tally of events — so a dropped Slack event never desyncs the cart. It self-heals.
+- **⚙️ Deterministic, not a chatbot.** No LLM in the runtime path. The intent layer is a list of phrase matchers, so a given input always does exactly the same thing — fast and predictable.
+- **🔌 Private by default.** Runs over Socket Mode — an outbound WebSocket, no public URL, nothing leaving the workspace.
+- **🛒 A real checkout (opt-in).** Beyond the mock flow, Foody can drive an actual takeaway.com basket in *your* signed-in Chrome, ready to confirm.
+
+---
 
 ## Architecture
 
-| Layer | What it owns |
+Foody is a small TypeScript app. Each layer owns one thing:
+
+| Layer | Responsibility |
 |---|---|
-| [src/slack/app.ts](src/slack/app.ts) | Bolt + Socket Mode app. All Slack plumbing — message triggers, action buttons, reaction events, block posting. |
-| [src/slack/blocks.ts](src/slack/blocks.ts) | Block Kit builders for the restaurants card, menu card, cart update, receipt. |
-| [src/slack/assistant.ts](src/slack/assistant.ts) | The AI assistant pane: Bolt `Assistant` wiring + the Claude tool-use loop and its four tools. |
-| [src/slack/intent.ts](src/slack/intent.ts) | Phrase matchers for "let's eat", "order now", "reset", "change address to ...". |
-| [src/state.ts](src/state.ts) | JSON state files in [state/](state/). Two keyings: `addr_<slackUserId>` for the sticky address book, `sess_<channel>_<threadTs>` for the live thread cart. |
-| [src/takeaway.ts](src/takeaway.ts#L42) | Restaurant + dish lookup. Mock-data first, stubbed `fetchLive()` for a real takeaway.com integration. |
-| [src/emojis.ts](src/emojis.ts) | The fixed 10-emoji pool + Unicode ↔ Slack shortcode mapping. |
-| [src/cli.ts](src/cli.ts) | Original CLI — left in place for debugging state by hand. |
+| [`src/slack/app.ts`](src/slack/app.ts) | Bolt + Socket Mode app. Message triggers, action buttons, reaction events, every Block Kit post & update. |
+| [`src/slack/blocks.ts`](src/slack/blocks.ts) | Block Kit builders: restaurant cards, the unified menu+cart card, the animated build-progress card, the receipt. |
+| [`src/slack/intent.ts`](src/slack/intent.ts) | Phrase matchers for *“let's eat”*, *“order now”*, *“reset”*, *“change address to …”*. A list, not a model. |
+| [`src/state.ts`](src/state.ts) | JSON state, keyed two ways: `addr_<user>` for the sticky address book, `sess_<channel>_<thread>` for the live cart. |
+| [`src/takeaway.ts`](src/takeaway.ts) + [`src/scrape-live.ts`](src/scrape-live.ts) | Restaurant/dish lookup with an in-memory + 24-hour disk-TTL cache and a daily background prewarm. |
+| [`src/checkout.ts`](src/checkout.ts) | Drives your already-running Chrome over the DevTools Protocol to fill the real basket in a background tab. |
+| [`src/emojis.ts`](src/emojis.ts) | The dish-emoji pool and the Unicode ↔ Slack-shortcode mapping. |
 
-The channel flow is deterministic code — the phrase matcher is a list, buttons and reactions drive everything. The LLM lives in exactly one place: the assistant pane, where Claude turns free text into calls against that same deterministic machinery. Kill `ANTHROPIC_API_KEY` and the channel flow still works.
+```
+let's eat  →  intent  →  session state  →  discovery (scrape + cache)  →  pre-reacted menu
+                                                                              │
+                                              react / un-react  ───────────────┘
+                                                     │
+                                          reconcile cart from message reactions
+                                                     │
+                                            Order  →  build basket (your Chrome)  →  receipt
+```
 
-## Install
+There's a one-page visual of this in **[docs/Foody-Technical-One-Pager.pdf](docs/Foody-Technical-One-Pager.pdf)**.
+
+### Request sequence
+
+How one lunch order flows end to end. Foody is an installed Slack agent: it connects over **Socket Mode** (no public URL), so most steps are pure Slack — events in, Web API calls out. Only the takeaway hops differ between today and the future.
+
+**Today** — discovery and checkout go through browser automation (amber steps 4 & 9):
+
+![Foody request sequence — today](docs/diagrams/foody-sequence-today.png)
+
+**With the official Just Eat Takeaway.com API** — the Slack side is identical; the brittle browser steps become a partner API + a status webhook, and it runs fully headless:
+
+![Foody request sequence — with official API](docs/diagrams/foody-sequence-with-api.png)
+
+> Print versions: **[Architecture — Today (PDF)](docs/Foody-Architecture-1-Today.pdf)** · **[Architecture — With official API (PDF)](docs/Foody-Architecture-2-With-API.pdf)**
+
+---
+
+## Quick start
 
 ```bash
 npm install
 cp .env.example .env
-# Fill in SLACK_BOT_TOKEN, SLACK_APP_TOKEN, SLACK_SIGNING_SECRET
-# + ANTHROPIC_API_KEY for the AI assistant pane
-```
-
-### Slack app setup
-
-1. Go to https://api.slack.com/apps → **Create New App** → **From a manifest**.
-2. Paste [docs/slack-manifest.yml](docs/slack-manifest.yml).
-3. **Install to Workspace**, copy the **Bot User OAuth Token** (`xoxb-...`) → `SLACK_BOT_TOKEN`.
-4. **Basic Information** → **App-Level Tokens** → create one with `connections:write` → copy (`xapp-...`) → `SLACK_APP_TOKEN`.
-5. **Basic Information** → **Signing Secret** → `SLACK_SIGNING_SECRET`.
-6. Invite the bot into a channel: `/invite @Foody`.
-
-> Upgrading an existing Foody install? Re-apply [docs/slack-manifest.yml](docs/slack-manifest.yml) under **App Manifest** — the AI assistant needs the `assistant_view` feature, the `assistant:write` scope, and the `assistant_thread_*` events — then reinstall to the workspace.
-
-### Run
-
-```bash
+# fill in SLACK_BOT_TOKEN, SLACK_APP_TOKEN, SLACK_SIGNING_SECRET
 npm run dev:slack
 ```
 
-Then in Slack: `let's eat something` in a channel where Foody is a member, or open the **Foody assistant** from the AI apps split pane and just tell it what you're craving.
+Then in Slack, in a channel where Foody is a member (`/invite @Foody`), type **`let's eat something`**.
 
-## Knobs
+### Slack app setup
 
-`.env`:
+1. Go to <https://api.slack.com/apps> → **Create New App** → **From a manifest**.
+2. Paste [docs/slack-manifest.yml](docs/slack-manifest.yml).
+3. **Install to Workspace**, copy the **Bot User OAuth Token** (`xoxb-…`) → `SLACK_BOT_TOKEN`.
+4. **Basic Information → App-Level Tokens** → create one with `connections:write` (`xapp-…`) → `SLACK_APP_TOKEN`.
+5. **Basic Information → Signing Secret** → `SLACK_SIGNING_SECRET`.
+6. Make sure **Socket Mode** is **On**.
 
-- `FOODY_CHANNELS` — comma-separated channel IDs to restrict the bot to. Empty = listen everywhere it's been invited.
-- `FOODY_LOG_LEVEL` — `debug`, `info` (default), `warn`, `error`.
+### Configuration knobs (`.env`)
 
-## CLI (debug only)
+| Variable | What it does |
+|---|---|
+| `FOODY_CHANNELS` | Comma-separated channel IDs to restrict the bot to. Empty = everywhere it's invited. |
+| `FOODY_LOG_LEVEL` | `debug` · `info` (default) · `warn` · `error`. |
+| `FOODY_DEBUG` | `1` dumps a menu-page snapshot (HTML + screenshot + probe) per cart build to `state/debug-checkout/`. |
+
+---
+
+## The real takeaway.com checkout (opt-in)
+
+The mock flow posts a stubbed receipt. For a **real** basket, Foody connects to your *already-running* Chrome over the DevTools Protocol and builds the order in a background tab — so it lands in your real, signed-in session with your saved address and payment.
+
+**Why connect instead of launching headless?** takeaway.com is fronted by Cloudflare Turnstile, which fingerprints and blocks bundled-Chromium Puppeteer. Your real Chrome already holds a valid clearance and session, so it sails through — and the “Pay” link opens in the same browser, basket intact.
+
+Launch Chrome with the debug port (Foody can also do this for you from a Slack button):
 
 ```bash
-npm run foody -- address <user> --set "Veldstraat 1, 9000 Gent"
+# macOS
+/Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome \
+  --remote-debugging-port=9222 \
+  --user-data-dir=/tmp/foody-chrome
+```
+
+> ⚠️ **Status:** the live cart-build is experimental. DOM matching on takeaway.com is sensitive to a logged-out session and layout changes; sign into takeaway.com in that Chrome first. The Slack flow, shared cart, and receipt all work against mock data with zero setup.
+
+---
+
+## CLI (debugging)
+
+State can be driven by hand — handy for poking at sessions without Slack:
+
+```bash
+npm run foody -- address <user> --set "Meir 1, Antwerpen"
 npm run foody -- restaurants <user>
 npm run foody -- menu <user> --index 1
 npm run foody -- cart <user> --add "🍕,🍔"
@@ -91,78 +197,65 @@ npm run foody -- status <user>
 npm run foody -- reset <user>
 ```
 
-`<user>` is just a state key — pass a Slack userId or anything you want; state is keyed by that string.
+---
 
-## Custom dish emojis (optional but worth it)
+## Project docs
 
-The bot ships with thematic standard emojis (`🍕 🌶️ 🧀 …`) per dish. You can replace them with real dish photos uploaded as workspace custom emojis. Two steps:
-
-### 1. Fetch the images
-
-```bash
-node scripts/fetch-dish-images.mjs
-```
-
-For every dish in the mock data this tries TheMealDB → Wikipedia page-image → category fallback. Results land in `data/dish-images/<slug>.png` (128×128 PNG, ≤128 KB each). It's idempotent — already-downloaded files are skipped. A `data/dish-images/manifest.json` keeps the dishId → slug map.
-
-### 2. Upload them to your Slack workspace
-
-Slack's bot API can't upload emojis (the official `admin.emoji.add` is Enterprise Grid only). So we go through the same path the Slack web client uses, authenticated with your *user* session token + `d` cookie. **This is against Slack's ToS, fine for personal/demo workspaces, not for anything you ship publicly.**
-
-Extract from your own browser session:
-
-| Value | Where |
+| Doc | What it is |
 |---|---|
-| `FOODY_SLACK_TEAM_DOMAIN` | Workspace subdomain — the part before `.slack.com` in your URL (e.g. `biztory`). |
-| `FOODY_SLACK_D_COOKIE` | DevTools → Application → Cookies → `https://app.slack.com` → copy the value of `d`. |
-| `FOODY_SLACK_XOXC` | DevTools → Console → run `JSON.parse(decodeURIComponent(window.localStorage.localConfig_v2)).teams` → find your workspace entry → copy `token` (`xoxc-…`). |
+| [DEMO.md](DEMO.md) | How to try Foody live (join link) and how to host your own always-on demo. |
+| [docs/DEVPOST.md](docs/DEVPOST.md) | The story: inspiration, what it does, how we built it, challenges, what's next. |
+| [docs/Foody-One-Pager.pdf](docs/Foody-One-Pager.pdf) | Commercial one-pager. |
+| [docs/Foody-Technical-One-Pager.pdf](docs/Foody-Technical-One-Pager.pdf) | Technical overview one-pager. |
+| [STYLE.md](STYLE.md) | Brand & style guide (color, type, voice, Block Kit usage). |
 
-Drop those into `.env`, then:
+*Screenshots above are generated from [docs/screenshots/flow.html](docs/screenshots/flow.html) via `node scripts/render-screenshots.mjs` — faithful renderings of the real Block Kit messages.*
 
-```bash
-node scripts/upload-emojis.mjs
-```
+---
 
-The script uploads each `foody_<slug>` once, skips ones that already exist, and writes `uploaded: true` back into the manifest. Restart the bot (`npm run dev:slack`) — the manifest is loaded at startup and Foody now prefers your custom emojis, falling back to the thematic standard one for any dish that didn't get uploaded.
+## Tech
 
-## Real takeaway.com cart-build (opt-in)
+`TypeScript` · `Node.js 22` · `@slack/bolt` (Socket Mode) · `Block Kit` · `Puppeteer` + stealth · JSON disk-TTL cache · `tsx`
 
-The bot has one **real** Belgian restaurant baked in — **Pizza Roma** in 9000 Gent — scraped from takeaway.com into `data/takeaway-real.json`. When you trigger Order on the real restaurant (not on the mock ones), Foody drives a Puppeteer session that:
+---
 
-1. Connects to your **already-running Chrome** via remote debugging (so the cart appears in your *real, signed-in* browser, with your saved address and payment methods).
-2. Opens a new tab → sets the delivery address → navigates to the Pizza Roma menu page.
-3. For each dish in the shared Slack cart, finds the dish card by name and clicks through the modal to add it.
-4. Leaves the tab open at the cart screen — you finish payment manually.
+## 🚀 Going forward
 
-### Launch Chrome with remote debugging
+**At the moment of writing, we did not have access to the Just Eat Takeaway.com API.** Everything in Foody's runtime is real — but the *food* layer (restaurant discovery and checkout) currently goes through **browser automation**: a stealth headless Chrome scrapes menus, and checkout drives your own signed-in Chrome over the DevTools Protocol to get past Cloudflare. It works, but it's the one fragile, non-cloud part of the system.
 
-Quit Chrome first, then start it with the debug port:
+**Official API access would streamline this agent significantly.** The Slack side wouldn't change at all — same install, same Socket Mode events, same emoji-reaction interface. Only the takeaway hops (steps 4 & 9 in the [request sequence](#request-sequence)) would become clean API calls, which unlocks:
 
-**macOS**
-```bash
-/Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome \
-  --remote-debugging-port=9222 \
-  --user-data-dir=/tmp/foody-chrome
-```
+- 🔁 **Reliable discovery** — structured menus (modifiers, allergens, live availability); no scraping, never breaks on a layout change
+- 💳 **Real orders + payment via API** — no driving a browser, no manual confirm
+- 📦 **Live delivery tracking** pushed back into the Slack thread (accepted → cooking → delivered)
+- ☁️ **Fully headless** — deploy anywhere in the cloud, scale to many workspaces, no user's Chrome
+- 💸 Accurate pricing & promos, address validation, reorder & history, true bill-splitting
 
-(The separate `--user-data-dir` keeps this debug instance independent of your normal Chrome profile — recommended for sanity. To use your real profile and its saved logins, omit `--user-data-dir`. Quit your normal Chrome first if you do.)
+> Side by side: **[Architecture — Today](docs/Foody-Architecture-1-Today.pdf)** vs **[Architecture — With the official API](docs/Foody-Architecture-2-With-API.pdf)**.
 
-You can confirm the debug interface is live: `curl http://localhost:9222/json/version`.
+### 📨 Reach out — let's make this real
 
-### Run an order
+<div align="center">
+<br>
 
-In Slack: `let's eat something` → pick *Pizza Roma* → react to add dishes → hit **🛒 Order**. Foody posts "Building your cart on takeaway.com…", a new Chrome tab pops up, items get added, and a follow-up Slack message links you to the cart in your browser.
+<img src="docs/assets/takeaway-logo.png" width="220" alt="Takeaway.com" />
 
-The mock restaurants in `data/takeaway-mock.json` still go through the stubbed receipt path — only the real `takeawayUrl`-flagged ones drive a Puppeteer build.
+<br><br>
 
-### Re-scrape
+**Are you on the Just Eat Takeaway.com team?**
 
-If Pizza Roma's menu changes (or you want a different real restaurant), edit `scripts/scrape-pizza-roma.mjs` (the constants at the top) and re-run it.
+Foody is built to plug into an official partner API the moment access is available — turning this from a clever hackathon agent into a production-grade ordering experience for **every Slack team**. The hard part (the Slack-native UX) is done; we just need the front door to the menus and baskets.
 
-```bash
-node scripts/scrape-pizza-roma.mjs
-```
+👉 **Open an issue on this repo**, or reach the maintainer at **timdries@hotmail.com**
 
-## Wiring real takeaway.com
+</div>
 
-[src/takeaway.ts:42](src/takeaway.ts#L42) — replace the body of `fetchLive()` so it returns `{ restaurants, dishes }` in the same shape as [data/takeaway-mock.json](data/takeaway-mock.json). Everything downstream — top-3 ranking, top-10 dishes, the Slack flow — runs unchanged on real data.
+---
+
+<div align="center">
+<br>
+
+**Foody** · group food ordering for Slack
+*Work hard, skip hangry.* 🍴
+
+</div>

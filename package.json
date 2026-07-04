@@ -2,10 +2,36 @@
   "name": "foody",
   "version": "0.1.0",
   "private": true,
-  "description": "Foody \u2014 a Slack-native group food-ordering bot fronting takeaway.com",
+  "description": "Foody — a Slack-native group food-ordering agent. Type \"let's eat something\" and the team builds one shared basket from emoji reactions.",
   "type": "module",
+  "license": "AGPL-3.0-or-later",
+  "author": "Tim Dries",
+  "homepage": "https://github.com/tdries/Foody-Slack-Hackathon-Submission#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tdries/Foody-Slack-Hackathon-Submission.git"
+  },
+  "bugs": {
+    "url": "https://github.com/tdries/Foody-Slack-Hackathon-Submission/issues"
+  },
+  "keywords": [
+    "slack",
+    "slack-bot",
+    "slack-agent",
+    "socket-mode",
+    "block-kit",
+    "food-delivery",
+    "group-ordering",
+    "typescript",
+    "hackathon"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "dev:slack": "tsx watch src/slack/app.ts",
+    "start": "tsx src/slack/app.ts",
+    "start:demo": "FOODY_DISABLE_LIVE=1 tsx src/slack/app.ts",
     "foody": "tsx src/cli.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run",

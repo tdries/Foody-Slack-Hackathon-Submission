@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Foody scene (animated)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700;900&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#1A1D21; --text:#D1D2D3; --bold:#FFFFFF; --dim:#9A9B9D; --divider:#35373B;
+    --btn-border:#5A5C60; --green:#007A5A; --danger:#E01E5A;
+    --pill:#26282C; --pill-on:#1B3A4B; --pill-on-border:#1D9BD1;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#000;font-family:"Lato",-apple-system,"Segoe UI",system-ui,sans-serif}
+  .app{width:900px;height:680px;background:var(--bg);display:flex;flex-direction:column;overflow:hidden;position:relative}
+  .chead{height:48px;flex:0 0 auto;border-bottom:1px solid var(--divider);display:flex;align-items:center;gap:8px;padding:0 18px;color:var(--bold);font-weight:900;font-size:15px}
+  .chead .hash{color:var(--dim);font-weight:700}
+  .chead .members{margin-left:auto;color:var(--dim);font-size:12px;font-weight:400}
+  .list{flex:1;overflow:hidden;display:flex;flex-direction:column;justify-content:flex-end;padding:13px 18px 16px;gap:12px}
+
+  .msg{display:flex;gap:10px;align-items:flex-start}
+  .avatar{width:36px;height:36px;border-radius:8px;flex:0 0 auto;display:flex;align-items:center;justify-content:center;font-weight:900;color:#fff;font-size:15px}
+  .avatar.foody{background:#fff;overflow:hidden} .avatar.foody img{width:100%;height:100%;object-fit:cover}
+  .body{flex:1;min-width:0}
+  .meta{display:flex;align-items:baseline;gap:8px;margin-bottom:2px}
+  .who{font-weight:900;color:var(--bold);font-size:15px}
+  .app-tag{background:#3b3d42;color:#cfd0d1;font-size:10px;font-weight:700;border-radius:3px;padding:1px 5px}
+  .time{color:var(--dim);font-size:12px}
+  .text{color:var(--text);font-size:15px;line-height:1.46}
+  .text b{color:var(--bold)} .text .em{color:var(--dim);font-style:italic}
+  .typing{display:inline-flex;gap:4px;padding:4px 0}
+  .typing i{width:7px;height:7px;border-radius:50%;background:#6b6d70;display:block}
+
+  .header{color:var(--bold);font-weight:900;font-size:19px;line-height:1.25;margin:6px 0 5px}
+  .ctx{color:var(--dim);font-size:13px;margin:4px 0;display:flex;align-items:center;gap:6px}
+  .ctx b{color:#cdced0} .ctx i{font-style:italic}
+  .hr{height:1px;background:var(--divider);margin:9px 0}
+  .btns{display:flex;flex-wrap:wrap;gap:8px;margin-top:9px}
+  .btn{border:1px solid var(--btn-border);color:#e8e8e8;border-radius:4px;padding:8px 13px;font-size:13.5px;font-weight:700;background:transparent;position:relative}
+  .btn.primary{background:var(--green);border-color:var(--green);color:#fff}
+  .btn.danger{border-color:#a02a48;color:#ff8aa8}
+  .rrow{display:flex;align-items:flex-start;gap:12px;margin:8px 0}
+  .rrow .rt{flex:1;font-size:14.5px;line-height:1.5;color:var(--text)} .rrow .rt .nm{color:var(--bold);font-weight:700} .rrow .rt .sub{color:var(--dim);font-size:12.5px;margin-top:2px}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:5px 24px;margin:7px 0}
+  .dish{font-size:14px;line-height:1.5;color:var(--text)}
+  .dish .q0{font-family:"JetBrains Mono",monospace;font-size:12px;background:#26282c;color:#9a9b9d;border-radius:4px;padding:1px 5px;margin-right:5px}
+  .dish.on{color:var(--bold)} .dish.on .qn{font-weight:900;color:#fff;margin-right:5px}
+  .dish .pr{color:var(--dim)} .dish.on .pr{color:#bfe3d4;font-weight:700}
+  .totals{font-size:14.5px;color:var(--text)} .totals b{color:var(--bold)} .totals .tot{color:#fff;font-weight:900}
+  .reacts{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+  .react{display:flex;align-items:center;gap:5px;background:var(--pill);border:1px solid #34363a;border-radius:11px;padding:3px 9px;font-size:12.5px;color:#cfd0d1;font-weight:700;transition:none}
+  .react.on{background:var(--pill-on);border-color:var(--pill-on-border);color:#cde8f5}
+  .react.bump{transform:scale(1.18)}
+  .prog .ttl{color:var(--bold);font-weight:900;font-size:16px}
+  .prog .barline{font-family:"JetBrains Mono",monospace;font-size:15px;letter-spacing:1px;margin-top:7px;color:#cfd0d1}
+  .prog .barline .fill{color:#2EB67D} .prog .barline .comet{color:#ECB22E} .prog .barline .pct{color:var(--dim);font-family:"Lato";letter-spacing:0;margin-left:8px}
+  .fgrid{display:grid;grid-template-columns:repeat(4,auto);gap:4px 36px;margin:6px 0}
+  .field .k{color:var(--bold);font-weight:700;font-size:13px} .field .v{color:var(--text);font-size:15px}
+
+  /* cursor + click pulse + name tag */
+  #cursor{position:absolute;left:0;top:0;z-index:50;pointer-events:none;display:none;transform:translate(-3px,-2px)}
+  #cursor svg{filter:drop-shadow(0 2px 3px rgba(0,0,0,.5))}
+  #ring{position:absolute;left:0;top:0;z-index:49;width:42px;height:42px;border-radius:50%;border:3px solid #ECB22E;
+    transform:translate(-50%,-50%) scale(0);opacity:0;pointer-events:none}
+  #nametag{position:absolute;z-index:51;transform:translate(14px,16px);font-weight:900;font-size:12px;color:#fff;
+    padding:3px 9px;border-radius:999px;white-space:nowrap;display:none;box-shadow:0 2px 6px rgba(0,0,0,.4)}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <div class="chead">🍴<span class="hash">#</span> lunch-crew <span class="members">👥 4</span></div>
+  <div class="list" id="list"></div>
+  <div id="ring"></div>
+  <div id="nametag"></div>
+  <div id="cursor"><svg width="26" height="30" viewBox="0 0 26 30"><path d="M2 2 L2 22 L8 17 L12 27 L16 25 L12 15 L20 15 Z" fill="#fff" stroke="#111" stroke-width="1.5" stroke-linejoin="round"/></svg></div>
+</div>
+
+<script>
+const MARK = '<img src="../assets/foody-mark-tile.png" alt="Foody">';
+const PEOPLE = { maya:{n:"Maya",c:"#7C5CBF"}, tom:{n:"Tom",c:"#1D9BD1"}, dana:{n:"Dana",c:"#2EB67D"} };
+
+const human = (p, time, text) => `
+  <div class="msg"><div class="avatar" style="background:${PEOPLE[p].c}">${PEOPLE[p].n[0]}</div>
+  <div class="body"><div class="meta"><span class="who">${PEOPLE[p].n}</span><span class="time">${time}</span></div>
+  <div class="text">${text}</div></div></div>`;
+const foody = (time, body) => `
+  <div class="msg"><div class="avatar foody">${MARK}</div>
+  <div class="body"><div class="meta"><span class="who">Foody</span><span class="app-tag">APP</span><span class="time">${time}</span></div>${body}</div></div>`;
+
+const greeting = `<div class="text">🍴 Foody here. Delivering to <b>Meir 1, Antwerpen</b> <span class="em">(say change address to … to update)</span>.</div>`;
+const category = `
+  <div class="header">What are you in the mood for?</div><div class="ctx">📍 <b>Meir 1, Antwerpen</b></div><div class="hr"></div>
+  <div class="btns"><button class="btn">🍕 Pizza</button><button class="btn">🍔 Burgers</button><button class="btn" data-t="cat">🥙 Kebab</button><button class="btn">🍣 Sushi</button><button class="btn">🍜 Asian</button><button class="btn">🥗 Healthy</button></div>`;
+const restaurants = `
+  <div class="header">Top 3 kebab spots near you</div><div class="ctx">📍 <b>Meir 1, Antwerpen</b></div><div class="hr"></div>
+  <div class="rrow"><div class="rt"><span class="nm">Anvers Pizza &amp; Kebab</span> · Kebab<div class="sub">⭐ 4.6 (100) · ⏱ 35 min · 🛵 €2.99</div></div><button class="btn" data-t="rest">See menu →</button></div>
+  <div class="hr"></div><div class="rrow"><div class="rt"><span class="nm">Solav Kebab</span> · Turkish<div class="sub">⭐ 4.4 (212) · ⏱ 30 min · 🛵 €1.99</div></div><button class="btn">See menu →</button></div>`;
+
+// dishes (id, emoji, name, price)
+const DISHES = [
+  ["margh","🍕","Margherita",12], ["maki","🍣","Salmon Maki",14],
+  ["fries","🍟","Loaded Fries",6.5], ["ramen","🍜","Spicy Ramen",13],
+  ["durum","🌯","Dürüm Kebab",13.5], ["falafel","🥗","Falafel Salad",9.5],
+];
+// shared-basket taps, in order: who taps what
+const TAPS = [
+  {p:"maya",d:"durum"}, {p:"tom",d:"margh"}, {p:"dana",d:"falafel"}, {p:"maya",d:"fries"}, {p:"tom",d:"durum"},
+];
+const eur = n => "€"+n.toFixed(2);
+
+function menuCard(tapsDone, bumpEmoji){
+  const qty = {}; DISHES.forEach(d=>qty[d[0]]=0);
+  for(let i=0;i<tapsDone;i++) qty[TAPS[i].d]++;
+  // 2-col interleave (ranks): col1 margh,fries,durum ; col2 maki,ramen,falafel
+  const order = ["margh","maki","fries","ramen","durum","falafel"];
+  const cells = order.map(id=>{
+    const d = DISHES.find(x=>x[0]===id); const q = qty[id];
+    return q>0
+      ? `<div class="dish on"><span class="qn">${q}×</span>${d[1]} <b>${d[2]}</b> <span class="pr">${eur(d[3]*q)}</span></div>`
+      : `<div class="dish"><span class="q0">0×</span>${d[1]} ${d[2]} <span class="pr">${eur(d[3])}</span></div>`;
+  }).join("");
+  const subtotal = DISHES.reduce((s,d)=>s+d[3]*qty[d[0]],0);
+  const items = Object.values(qty).reduce((a,b)=>a+b,0);
+  // reaction pills: base 1 (bot) + taps on that emoji
+  const pillCount = {}; DISHES.forEach(d=>pillCount[d[1]]=1);
+  for(let i=0;i<tapsDone;i++){ const d=DISHES.find(x=>x[0]===TAPS[i].d); pillCount[d[1]]++; }
+  const pills = DISHES.map(d=>{
+    const on = qty[d[0]]>0; const bump = bumpEmoji===d[1] ? " bump":"";
+    return `<div class="react${on?" on":""}${bump}" data-emoji="${d[1]}">${d[1]} ${pillCount[d[1]]}</div>`;
+  }).join("");
+  const orderBtn = items>0 ? `<button class="btn primary" data-t="order">🛒 Order now</button>` : "";
+  return `
+    <div class="header">Anvers Pizza &amp; Kebab</div>
+    <div class="ctx"><i>Tap the emoji reaction under a dish to add it — everyone shares one basket.</i></div><div class="hr"></div>
+    <div class="grid">${cells}</div><div class="hr"></div>
+    <div class="totals">Subtotal <b>${eur(subtotal)}</b> · Delivery <b>€2.99</b> · <span class="tot">TOTAL ${eur(subtotal+2.99)}</span> · Min <b>€10.00</b> ${subtotal>=10?"✓":""}</div>
+    <div class="hr"></div><div class="btns">${orderBtn}<button class="btn danger">Cancel</button></div>
+    <div class="reacts">${pills}</div>`;
+}
+const progress = `<div class="prog"><div class="ttl">⠹  👩‍🍳  Foody's in the kitchen</div>
+  <div class="text" style="margin-top:3px">Adding <b>Dürüm Kebab</b> to the basket… (3/4)</div>
+  <div class="barline"><span class="fill">█████████████</span><span class="comet">▓</span>░░░░<span class="pct">72%</span></div></div>`;
+const receipt = `<div class="header">🎉 Order placed!</div>
+  <div class="text">Order <b>FD-7QK2A</b> at <b>Anvers Pizza &amp; Kebab</b></div><div class="hr"></div>
+  <div class="fgrid"><div class="field"><div class="k">Subtotal</div><div class="v">€55.00</div></div>
+  <div class="field"><div class="k">Delivery</div><div class="v">€2.99</div></div>
+  <div class="field"><div class="k">Total</div><div class="v">€57.99</div></div>
+  <div class="field"><div class="k">ETA</div><div class="v">~35 min</div></div></div>
+  <div class="ctx">📍 Meir 1, Antwerpen</div>`;
+
+const easeOut = t => 1-Math.pow(1-t,3);
+const lerp = (a,b,t)=>a+(b-a)*t;
+
+const els = {
+  list: document.getElementById("list"), app: document.getElementById("app"),
+  cursor: document.getElementById("cursor"), ring: document.getElementById("ring"), nametag: document.getElementById("nametag"),
+};
+
+function placeCursor(targetSel, travel, clickPhase, person){
+  const tgt = els.list.querySelector(targetSel);
+  if(!tgt){ hideCursor(); return; }
+  const a = els.app.getBoundingClientRect(), r = tgt.getBoundingClientRect();
+  const tx = r.left-a.left + r.width/2, ty = r.top-a.top + r.height/2;
+  // travel from a rest point (lower-right) to the target
+  const fromX = a.width*0.62, fromY = a.height*0.82;
+  const e = easeOut(Math.min(travel,1));
+  const x = lerp(fromX,tx,e), y = lerp(fromY,ty,e);
+  els.cursor.style.display="block"; els.cursor.style.left=x+"px"; els.cursor.style.top=y+"px";
+  // click ring
+  if(clickPhase>0){ els.ring.style.left=tx+"px"; els.ring.style.top=ty+"px";
+    els.ring.style.opacity=String(0.8*(1-clickPhase)); els.ring.style.transform=`translate(-50%,-50%) scale(${0.2+clickPhase*1.4})`; }
+  else els.ring.style.opacity="0";
+  if(person){ const pp=PEOPLE[person]; els.nametag.style.display="block"; els.nametag.style.left=x+"px"; els.nametag.style.top=y+"px";
+    els.nametag.style.background=pp.c; els.nametag.textContent=pp.n; }
+  else els.nametag.style.display="none";
+}
+function hideCursor(){ els.cursor.style.display="none"; els.ring.style.opacity="0"; els.nametag.style.display="none"; }
+
+// Master render: state from (segment index, progress 0..1)
+window.render = function(seg, p){
+  let msgs = [];
+  const add = h => msgs.push(h);
+  // cumulative chat
+  add(human("maya","12:01 PM","Anyone else <b>starving</b>? 😩"));
+  if(seg>=1){ add(human("tom","12:01 PM","Yep. Last time we spent 20 min deciding 🙃")); add(human("dana","12:02 PM","Let Foody handle it 😄")); }
+  if(seg>=2){ if(seg===2 && p<0.45) add(human("maya","12:02 PM",`<span class="typing"><i></i><i></i><i></i></span>`)); else add(human("maya","12:02 PM","let's eat something")); }
+  if(seg>=3) add(foody("12:02 PM", greeting));
+  if(seg>=4) add(foody("12:02 PM", category));
+  if(seg>=5) add(foody("12:03 PM", restaurants));
+  let bump=null;
+  if(seg===7){ // animate taps
+    const k = Math.min(TAPS.length, Math.floor(p*TAPS.length)); // taps fully done
+    const localF = p*TAPS.length - Math.floor(p*TAPS.length);
+    const cur = Math.min(TAPS.length-1, Math.floor(p*TAPS.length));
+    const registered = localF>=0.62 ? cur+1 : cur; // include current once "clicked"
+    const done = Math.max(k, registered);
+    if(localF>=0.62 && localF<0.85){ const d=DISHES.find(x=>x[0]===TAPS[cur].d); bump=d[1]; }
+    add(foody("12:03 PM", menuCard(Math.min(done,TAPS.length), bump)));
+  } else if(seg===6){ add(foody("12:03 PM", menuCard(0,null))); }
+  else if(seg>=6){ add(foody("12:03 PM", menuCard(TAPS.length,null))); }
+  if(seg>=8 && (seg>8 || p>=0.45)) add(foody("12:04 PM", progress));
+  if(seg>=9 && p>=0.12) add(foody("12:04 PM", receipt));
+  if(seg>=9 && p>=0.62) add(human("tom","12:05 PM","🙌 fed in under a minute"));
+
+  els.list.innerHTML = msgs.join("");
+
+  // cursor choreography
+  hideCursor();
+  if(seg===4){ placeCursor('[data-t="cat"]', p/0.6, p>=0.6&&p<0.85?(p-0.6)/0.25:0, null); }
+  else if(seg===5){ placeCursor('[data-t="rest"]', p/0.6, p>=0.6&&p<0.85?(p-0.6)/0.25:0, null); }
+  else if(seg===7){
+    const cur = Math.min(TAPS.length-1, Math.floor(p*TAPS.length));
+    const localF = p*TAPS.length - Math.floor(p*TAPS.length);
+    const d = DISHES.find(x=>x[0]===TAPS[cur].d);
+    placeCursor(`[data-emoji="${d[1]}"]`, localF/0.55, localF>=0.55&&localF<0.85?(localF-0.55)/0.3:0, TAPS[cur].p);
+  }
+  else if(seg===8){ if(p<0.5) placeCursor('[data-t="order"]', p/0.3, p>=0.3&&p<0.5?(p-0.3)/0.2:0, null); }
+};
+
+// initial
+const q = new URLSearchParams(location.search);
+window.render(parseInt(q.get("seg")||"0",10), parseFloat(q.get("p")||"0"));
+</script>
+</body>
+</html>

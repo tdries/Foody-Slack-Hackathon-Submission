@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Foody demo frames</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --red:#E23B2E; --green:#2EB67D; --yellow:#ECB22E; --blue:#36C5F0;
+    --bg:#F6F5F1; --surface:#FFFFFF; --ink:#2D2D2D; --ink-soft:#5B5B5B; --line:#E4E2DB;
+    --display:"Poppins","Inter",system-ui,sans-serif; --body:"Inter",system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:var(--body)}
+  .stage{width:900px;height:620px;background:var(--bg);position:relative;overflow:hidden;
+    display:flex;flex-direction:column;padding:30px 38px 26px;color:var(--ink)}
+  .stage::before{content:"";position:absolute;top:-160px;right:-160px;width:360px;height:360px;border-radius:50%;
+    background:radial-gradient(circle at center, rgba(54,197,240,.12), rgba(54,197,240,0) 70%)}
+  .stage::after{content:"";position:absolute;bottom:-170px;left:-170px;width:360px;height:360px;border-radius:50%;
+    background:radial-gradient(circle at center, rgba(46,182,125,.11), rgba(46,182,125,0) 70%)}
+
+  .bar{display:flex;align-items:center;gap:11px;position:relative;z-index:2}
+  .mark{width:34px;height:34px;overflow:hidden;border-radius:7px}.mark img{width:100%;height:100%;object-fit:cover}
+  .bar .nm{font-family:var(--display);font-weight:800;font-size:20px;letter-spacing:-.5px}
+  .bar .sub{font-family:var(--display);font-weight:600;color:var(--ink-soft);font-size:13px}
+  .bar .step{margin-left:auto;font-family:var(--display);font-weight:700;font-size:12px;color:var(--ink-soft);
+    background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:6px 13px}
+
+  .cap{font-family:var(--display);font-weight:800;font-size:28px;letter-spacing:-.5px;margin-top:16px;position:relative;z-index:2;line-height:1.1}
+  .cap .k{color:var(--blue);font-size:14px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;display:block;margin-bottom:5px}
+
+  .imgwrap{flex:1;display:flex;align-items:center;justify-content:center;margin-top:14px;position:relative;z-index:2}
+  .imgwrap img{max-width:100%;max-height:340px;border-radius:12px;border:1px solid var(--line);
+    box-shadow:0 6px 22px rgba(0,0,0,.16)}
+
+  .foot{display:flex;align-items:center;gap:8px;margin-top:14px;position:relative;z-index:2}
+  .dots{display:flex;gap:7px}
+  .dots i{width:9px;height:9px;border-radius:999px;background:#D6D4CD;display:block}
+  .dots i.on{background:var(--green);width:24px}
+  .foot .tag{margin-left:auto;font-family:var(--display);font-weight:600;font-size:13px;color:var(--ink-soft)}
+
+  /* title / end cards */
+  .center{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;position:relative;z-index:2;gap:14px}
+  .center .bigmark{width:96px;height:96px}
+  .center h1{font-family:var(--display);font-weight:800;font-size:48px;letter-spacing:-1.5px}
+  .center h2{font-family:var(--display);font-weight:800;font-size:30px;letter-spacing:-.5px;max-width:660px;line-height:1.18}
+  .center .t{font-family:var(--display);font-weight:600;color:var(--ink-soft);font-size:17px}
+  .center .chip{display:inline-flex;align-items:center;gap:8px;background:var(--ink);color:#fff;
+    font-family:var(--display);font-weight:700;font-size:15px;padding:11px 20px;border-radius:999px;margin-top:6px}
+  .center .barbar{display:flex;gap:6px}
+  .center .barbar i{width:9px;height:34px;border-radius:999px;display:block}
+</style>
+</head>
+<body>
+<div class="stage" id="stage"></div>
+
+<script>
+  const MARK = '<img src="../assets/foody-mark-tile.png" alt="Foody">';
+  const steps = [
+    { kicker: "Step 1", cap: "Say “let's eat something”", img: "../screenshots/01-greeting.png" },
+    { kicker: "Step 2", cap: "Pick a vibe", img: "../screenshots/02-category.png" },
+    { kicker: "Step 3", cap: "Choose a spot", img: "../screenshots/03-restaurants.png" },
+    { kicker: "Step 4", cap: "React to build a shared basket", img: "../screenshots/04-menu-cart.png" },
+    { kicker: "Step 5", cap: "Tap Order — Foody gets cooking", img: "../screenshots/05-progress.png" },
+    { kicker: "Step 6", cap: "Receipt lands in the thread", img: "../screenshots/06-receipt.png" },
+  ];
+  const params = new URLSearchParams(location.search);
+  const frame = params.get("frame") || "title";
+  const stage = document.getElementById("stage");
+
+  function dots(active){
+    return '<div class="dots">' + steps.map((_,i)=>`<i class="${i===active?"on":""}"></i>`).join("") + '</div>';
+  }
+  function bars(){ return '<div class="barbar"><i style="background:var(--red)"></i><i style="background:var(--yellow)"></i><i style="background:var(--blue)"></i><i style="background:var(--green)"></i></div>'; }
+
+  if (frame === "title") {
+    stage.innerHTML = `<div class="center">
+      <div class="bigmark">${MARK}</div>
+      <h1>Foody</h1>
+      <div class="t">Work hard, skip hangry.</div>
+      <h2 style="margin-top:6px">Order lunch as a team — without leaving Slack.</h2>
+      ${bars()}
+    </div>`;
+  } else if (frame === "end") {
+    stage.innerHTML = `<div class="center">
+      <div class="bigmark">${MARK}</div>
+      <h2>Six taps from “let's eat something” to a shared basket.</h2>
+      <div class="t">No app to install · lives right in your channel.</div>
+      <div class="chip">/invite @Foody →</div>
+    </div>`;
+  } else {
+    const i = parseInt(frame, 10);
+    const s = steps[i];
+    stage.innerHTML = `
+      <div class="bar">
+        <div class="mark">${MARK}</div>
+        <div class="nm">Foody</div>
+        <div class="sub">· how it works</div>
+        <div class="step">${i+1} / 6</div>
+      </div>
+      <div class="cap"><span class="k">${s.kicker}</span>${s.cap}</div>
+      <div class="imgwrap"><img src="${s.img}" alt=""></div>
+      <div class="foot">${dots(i)}<div class="tag">Work hard, skip hangry.</div></div>`;
+  }
+</script>
+</body>
+</html>

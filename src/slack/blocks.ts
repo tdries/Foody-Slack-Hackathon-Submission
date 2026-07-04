@@ -435,6 +435,53 @@ function rawProgressBar(pct: number, width = 18): string {
   return `\`${"▰".repeat(filled)}${"▱".repeat(width - filled)}\`  ${clamped}%`;
 }
 
+/** Braille spinner — advances every frame so the card always reads as "working". */
+export const BUILD_SPINNER = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
+
+/**
+ * A bar that's alive even when the percentage isn't changing: solid cells for
+ * progress, and a single medium-shade "comet" that travels through the
+ * remaining empty cells each frame. Full-cell block glyphs (█ ▓ ░) keep every
+ * cell the same monospace width so the bar never jitters.
+ */
+function animatedBar(pct: number, frame: number, width = 18): string {
+  const clamped = Math.max(0, Math.min(100, Math.round(pct)));
+  const filled = Math.max(0, Math.min(width, Math.round((clamped / 100) * width)));
+  const cells: string[] = [];
+  for (let i = 0; i < width; i++) cells.push(i < filled ? "█" : "░");
+  const emptyLen = width - filled;
+  if (emptyLen > 0) {
+    cells[filled + (frame % emptyLen)] = "▓"; // comet sweeps the empty region
+  } else {
+    cells[width - 1] = frame % 2 === 0 ? "█" : "▓"; // bar full — pulse the tail
+  }
+  return `\`${cells.join("")}\`  ${clamped}%`;
+}
+
+/**
+ * In-progress card for the cart build. Driven by a ticker (see startBuildTicker)
+ * that re-renders on an interval, advancing `frame` so the spinner + comet keep
+ * moving and `subtitle` reflects the live sub-step.
+ */
+export function buildTickBlocks(opts: {
+  spinner: string;
+  title: string;
+  subtitle: string;
+  pct: number;
+  frame: number;
+}): Block[] {
+  return [
+    {
+      type: "section",
+      text: { type: "mrkdwn", text: `*${opts.spinner}  ${opts.title}*\n${opts.subtitle}` },
+    },
+    {
+      type: "context",
+      elements: [{ type: "mrkdwn", text: animatedBar(opts.pct, opts.frame) }],
+    },
+  ];
+}
+
 /**
  * Compact "looking up…" card used during the (slow) restaurant/menu scrapes.
  * Reads as a status banner with a live-ticking progress bar — the same visual
@@ -530,10 +577,15 @@ export function progressCardBlocks(opts: {
         type: "actions",
         elements: [
           {
+            // NOT a url button — a url button opens Slack's *default* browser,
+            // a different Chrome profile than the one Foody built the basket in
+            // (empty there). This action surfaces the Foody Chrome tab that
+            // actually holds the basket.
             type: "button",
             style: "primary",
             text: { type: "plain_text", text: "💳  Review & pay", emoji: true },
-            url: payUrl,
+            action_id: "review_and_pay",
+            value: payUrl,
           },
         ],
       });
